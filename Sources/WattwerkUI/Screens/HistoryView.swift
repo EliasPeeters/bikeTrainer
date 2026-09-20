@@ -29,7 +29,13 @@ struct HistoryView: View {
 
                     ForEach(model.sessions.sessions) { record in
                         NavigationLink(value: record) {
-                            SessionRow(record: record)
+                            // Ohne Konto gibt es keinen Server, auf dem etwas
+                            // fehlen könnte - dann ist „ausstehend“ keine
+                            // Information, sondern nur ein Warnzeichen zu viel.
+                            SessionRow(
+                                record: record,
+                                isAwaitingUpload: model.account.isSignedIn && record.uploadedAt == nil
+                            )
                         }
                         .buttonStyle(CardButtonStyle())
                         .withoutSystemFocusEffect()
@@ -64,6 +70,7 @@ struct HistoryView: View {
 
 struct SessionRow: View {
     let record: SessionRecord
+    var isAwaitingUpload = false
 
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -77,9 +84,16 @@ struct SessionRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(record.workoutName)
                     .font(.system(size: 16 * Theme.scale, weight: .semibold))
-                Text(Self.dateFormatter.string(from: record.startedAt))
-                    .font(.system(size: 12 * Theme.scale))
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    Text(Self.dateFormatter.string(from: record.startedAt))
+                        .font(.system(size: 12 * Theme.scale))
+                        .foregroundStyle(.secondary)
+                    if isAwaitingUpload {
+                        Label("Noch nicht hochgeladen", systemImage: "icloud.and.arrow.up")
+                            .font(.system(size: 12 * Theme.scale, weight: .medium))
+                            .foregroundStyle(Theme.accent)
+                    }
+                }
             }
 
             Spacer()

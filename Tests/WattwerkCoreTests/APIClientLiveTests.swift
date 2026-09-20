@@ -113,6 +113,47 @@ struct APIClientLiveTests {
         #expect(listed.count == 2)
     }
 
+    /// Anlegen und sofort etwas Geschütztes tun - der Weg, auf dem die
+    /// Einheiten liegen blieben.
+    ///
+    /// `AccountStore` reichte die gespeicherten Tokens früher über einen
+    /// unstrukturierten Task an den Client. Der lief irgendwann - unter anderem
+    /// erst nach einer Anmeldung, und schrieb dann die Tokens von vorhin
+    /// zurück, beim ersten Start also gar keine. Das Konto galt als angemeldet,
+    /// jeder Aufruf kam aber als „Anmeldung erforderlich“ zurück.
+    ///
+    /// Achtung: dieser Test *belegt* das nicht. Ob der Task vor oder nach der
+    /// Anmeldung lief, entschied die Ausführungsreihenfolge, und die lässt sich
+    /// hier nicht erzwingen - mit dem alten Code läuft der Test mal so, mal so
+    /// durch. Er hält den Weg offen, nicht das Wettrennen fest; dass die Tokens
+    /// heute schon im `init` des Clients stehen, ist die eigentliche Absicherung.
+    @MainActor
+    @Test("Direkt nach dem Anlegen eines Kontos trägt die Anmeldung schon")
+    func accountStoreIsUsableRightAfterRegistering() async throws {
+        let url = URL(string: ProcessInfo.processInfo.environment["WATTWERK_API_URL"] ?? "http://localhost:8088")!
+        let store = AccountStore(storage: InMemoryStorage(), baseURL: url)
+        await store.register(email: freshEmail(), password: "geheim12", name: "Sofort")
+        #expect(store.isSignedIn)
+        #expect(store.lastError == nil)
+
+        // Kein Umweg über einen Abgleich: ein geschützter Aufruf muss jetzt
+        // durchgehen, sonst bliebe jede gefahrene Einheit liegen.
+        let record = SessionRecord(
+            workoutName: "Sofort nach Anmeldung",
+            startedAt: Date(),
+            duration: 30,
+            completed: false,
+            ftp: 200,
+            averagePower: 180,
+            maxPower: 180,
+            normalizedPower: 180,
+            intensityFactor: 0.9,
+            trainingStressScore: 1,
+            kilojoules: 5
+        )
+        try await store.client.upload(session: record)
+    }
+
     @Test("Eine gefahrene Einheit landet im Verlauf")
     func uploadSession() async throws {
         let client = self.client

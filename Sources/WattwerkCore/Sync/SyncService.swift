@@ -79,9 +79,21 @@ public final class SyncService {
 
     /// Nach jeder gespeicherten Einheit. Schlägt es fehl, bleibt die Einheit
     /// als ausstehend liegen und geht beim nächsten Abgleich mit.
+    ///
+    /// Der Fehler wird dabei festgehalten, nicht verschluckt: sonst steht im
+    /// Konto weiter „zuletzt abgeglichen“, während die Einheit nie ankommt -
+    /// und genau das ist der Fall, den man sehen will.
     public func uploadPendingSessions() async {
         guard account.isSignedIn else { return }
-        try? await uploadSessions()
+        do {
+            try await uploadSessions()
+            status = .done(Date())
+        } catch APIError.unauthorized {
+            account.logout()
+            status = .failed("Die Anmeldung ist abgelaufen.")
+        } catch {
+            status = .failed((error as? APIError)?.errorDescription ?? error.localizedDescription)
+        }
     }
 
     // MARK: Einzelschritte
@@ -127,9 +139,26 @@ public final class SyncService {
     }
 
     private func uploadSessions() async throws {
+        var rejected: Error?
         for record in sessions.pendingUploads {
-            try await account.client.upload(session: record)
-            sessions.markUploaded(id: record.id)
+            do {
+                try await account.client.upload(session: record)
+                sessions.markUploaded(id: record.id)
+            } catch let error as APIError {
+                switch error {
+                case .server:
+                    // Der Server lehnt genau diese eine Einheit ab. Hier
+                    // abzubrechen hieße, den gesamten Verlauf an einem einzigen
+                    // krummen Datensatz aufzuhängen - der bleibt liegen, der
+                    // Rest geht hoch, und gemeldet wird trotzdem.
+                    rejected = rejected ?? error
+                case .offline, .unauthorized, .decoding:
+                    // Kein Netz oder keine Anmeldung: dann klappt auch der
+                    // nächste Versuch nicht. Später noch einmal von vorn.
+                    throw error
+                }
+            }
         }
+        if let rejected { throw rejected }
     }
 }

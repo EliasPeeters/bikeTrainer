@@ -23,21 +23,28 @@ public final class AccountStore {
 
     public init(storage: any KeyValueStorage, baseURL: URL) {
         self.storage = storage
-        client = APIClient(baseURL: baseURL)
+        // Die gespeicherten Tokens gehen direkt in den Client.
+        //
+        // Vorher stand hier `Task { await client.setTokens(tokens) }`. Ein
+        // unstrukturierter Task läuft irgendwann - unter anderem *nach* einer
+        // Anmeldung, die inzwischen stattgefunden hat. Er schrieb dann die beim
+        // Start geladenen Tokens zurück, beim ersten Start also gar keine. Das
+        // Konto galt weiter als angemeldet, aber jeder Aufruf kam als
+        // „Anmeldung erforderlich“ zurück: gefahrene Einheiten blieben liegen
+        // und tauchten im Web-Portal nie auf.
+        client = APIClient(baseURL: baseURL, tokens: Self.loadTokens(from: storage))
 
         if let data = storage.data(forKey: Self.userKey),
            let decoded = try? JSONDecoder().decode(UserPayload.self, from: data) {
             user = decoded
         }
 
-        let tokens = Self.loadTokens(from: storage)
+        // Nur noch der Rückruf wird nachgereicht, und der darf das: er ändert
+        // keine Tokens, sondern schreibt aufgefrischte auf die Platte - sonst
+        // wäre die Sitzung nach dem nächsten Start doch vorbei. Der Speicher
+        // gehört dem Hauptakteur, also geht der Rückruf dorthin zurück.
         Task { [weak self] in
             guard let self else { return }
-            await self.client.setTokens(tokens)
-            // Frischt der Client die Tokens auf, müssen die neuen auf die
-            // Platte - sonst ist die Sitzung nach dem nächsten Start doch vorbei.
-            // Der Speicher selbst gehört dem Hauptakteur, also geht der Rückruf
-            // dorthin zurück, statt ihn mitzunehmen.
             await self.client.setTokenObserver { [weak self] newTokens in
                 Task { @MainActor in
                     self?.persistTokens(newTokens)

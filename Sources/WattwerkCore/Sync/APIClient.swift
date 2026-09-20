@@ -22,8 +22,15 @@ public actor APIClient {
     /// Wird gerufen, wenn sich die Tokens durch eine Auffrischung geändert haben.
     private var onTokensChanged: (@Sendable (Tokens?) -> Void)?
 
-    public init(baseURL: URL, session: URLSession = .shared) {
+    /// Die Tokens gehören in den Init, nicht in einen Aufruf danach.
+    ///
+    /// Ein `await client.setTokens(…)` aus einem unstrukturierten Task läuft
+    /// irgendwann - unter Umständen erst, nachdem sich jemand angemeldet hat,
+    /// und überschreibt dann dessen frische Tokens mit den alten. Als Argument
+    /// stehen sie fest, bevor der Client den ersten Aufruf sehen kann.
+    public init(baseURL: URL, tokens: Tokens? = nil, session: URLSession = .shared) {
         self.baseURL = baseURL
+        self.tokens = tokens
         self.session = session
     }
 
@@ -176,9 +183,24 @@ public actor APIClient {
     ) async throws -> Result {
         let (data, response) = try await perform(path, method: method, body: body, authenticated: authenticated)
 
+        // Eine 401 ohne Token heißt: es fehlt die Sitzung, nicht etwas an der
+        // Anfrage. Vorher fiel dieser Fall bis zur allgemeinen
+        // Fehlerbehandlung durch und kam als `.server("Anmeldung
+        // erforderlich.")` heraus - ein Text, den `refreshProfile` und
+        // `syncAll` nicht als „abgemeldet“ erkennen. Sie zeigten ihn an und
+        // ließen den Zustand, wie er war.
+        if response.statusCode == 401, authenticated, tokens == nil {
+            throw APIError.unauthorized
+        }
+
         // Abgelaufenes Zugangstoken: einmal auffrischen, dann denselben Aufruf
         // wiederholen. Genau einmal - scheitert auch der zweite Versuch, ist die
         // Sitzung wirklich vorbei, und eine Schleife hilft niemandem.
+        //
+        // Kommt die 401 auch nach dem Auffrischen zurück (`allowRefresh` ist
+        // dann falsch), liegt es nicht an der Sitzung, sondern an dieser einen
+        // Anfrage - etwa einem falschen Passwort beim Löschen des Kontos. Die
+        // fällt unten als Serverfehler durch, und die Anmeldung bleibt stehen.
         if response.statusCode == 401, authenticated, allowRefresh, tokens != nil {
             if try await refreshTokens() {
                 return try await send(

@@ -58,13 +58,32 @@ struct StoreTests {
         #expect(imported[0].segments.count == BuiltInWorkouts.vo2max5x3.segments.count)
     }
 
-    @Test("Sehr kurze Einheiten landen nicht im Verlauf")
-    func ignoresTinyRides() {
+    /// `add` wird nur nach einem Druck auf „Speichern“ gerufen - neben einem
+    /// Knopf „Verwerfen“. Eine Längenschwelle würde diese Entscheidung
+    /// stillschweigend überstimmen, und die Einheit fehlte danach im Verlauf
+    /// wie in der Cloud, ohne dass irgendwo etwas davon stünde.
+    @Test("Auch eine sehr kurze Einheit landet im Verlauf, wenn sie gespeichert wird")
+    func keepsTinyRides() {
         let store = SessionStore(storage: InMemoryStorage())
         store.add(makeRecord(duration: 30))
-        #expect(store.sessions.isEmpty)
-        store.add(makeRecord(duration: 600))
         #expect(store.sessions.count == 1)
+        store.add(makeRecord(duration: 600))
+        #expect(store.sessions.count == 2)
+    }
+
+    @Test("Eine gespeicherte Einheit gilt als ausstehend, bis der Server sie hat")
+    func newRidesAreQueuedForUpload() {
+        let storage = InMemoryStorage()
+        let store = SessionStore(storage: storage)
+        store.add(makeRecord(duration: 600))
+        let id = try! #require(store.sessions.first?.id)
+        #expect(store.pendingUploads.count == 1)
+
+        store.markUploaded(id: id)
+        #expect(store.pendingUploads.isEmpty)
+        // Und der Vermerk überlebt den Neustart, sonst wandert dieselbe
+        // Einheit beim nächsten Abgleich noch einmal hoch.
+        #expect(SessionStore(storage: storage).pendingUploads.isEmpty)
     }
 
     @Test("Ohne Sekundenaufzeichnung wird die Spur verworfen (Apple TV)")

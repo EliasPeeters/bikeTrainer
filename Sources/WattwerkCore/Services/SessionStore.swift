@@ -25,8 +25,14 @@ public final class SessionStore {
     }
 
     public func add(_ record: SessionRecord) {
-        // A ride that never got going is not worth keeping.
-        guard record.duration >= 60 else { return }
+        // Hier wird nichts mehr aussortiert.
+        //
+        // Vorher flogen Fahrten unter einer Minute raus - "die zählt ja nicht".
+        // Nur wird `add` ausschließlich dann gerufen, wenn jemand auf der
+        // Auswertung „Speichern“ gedrückt hat, und daneben steht „Verwerfen“.
+        // Die Entscheidung war also längst getroffen; die Schwelle hat sie
+        // stillschweigend überstimmt. Wer eine kurze Fahrt nicht behalten will,
+        // sagt das mit dem anderen Knopf.
         let stored = keepsSampleTracks ? record : record.withoutSamples()
         sessions.insert(stored, at: 0)
         if sessions.count > limit {
