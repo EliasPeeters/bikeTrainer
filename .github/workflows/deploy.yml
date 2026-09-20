@@ -125,6 +125,7 @@ jobs:
           LANDINGPAGE_PORT: ${{ vars.LANDINGPAGE_PORT || '8089' }}
           MCP_PORT: ${{ vars.MCP_PORT || '8090' }}
           MCP_ALLOWED_ORIGINS: ${{ vars.MCP_ALLOWED_ORIGINS }}
+          MCP_RESOURCE_URL: ${{ vars.MCP_RESOURCE_URL || 'https://mcp.wattwerk.eliaspeeters.de/mcp' }}
         run: |
           set -euo pipefail
           # Über die Standardeingabe, damit die Geheimnisse nicht in der
@@ -141,6 +142,7 @@ jobs:
           LANDINGPAGE_PORT=$LANDINGPAGE_PORT
           MCP_PORT=$MCP_PORT
           MCP_ALLOWED_ORIGINS=$MCP_ALLOWED_ORIGINS
+          MCP_RESOURCE_URL=$MCP_RESOURCE_URL
           ENVFILE
 
       - name: Proxy-Netz sicherstellen
@@ -174,6 +176,10 @@ jobs:
           # Der MCP-Dienst antwortet auf /health ohne Token - alles andere
           # verlangt eines, und ein 401 wäre hier kein brauchbares Signal.
           ssh vps "curl -fsS -o /dev/null -w 'MCP-Server: %{http_code}\n' http://127.0.0.1:$MCP_PORT/health"
+          # Die beiden Metadatendokumente, an denen ein OAuth-Client den Weg
+          # zur Anmeldung findet. Fehlen sie, verbindet sich niemand.
+          ssh vps "curl -fsS -o /dev/null -w 'OAuth-Ressource: %{http_code}\n' http://127.0.0.1:$MCP_PORT/.well-known/oauth-protected-resource"
+          ssh vps "curl -fsS -o /dev/null -w 'OAuth-Server: %{http_code}\n' http://127.0.0.1:$API_PORT/.well-known/oauth-authorization-server"
 
       - name: Alte Abbilder aufräumen
         if: always()

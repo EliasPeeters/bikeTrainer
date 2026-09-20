@@ -40,6 +40,8 @@ export type CredentialSource = "env" | "header"
 
 export interface Credentials {
     source: CredentialSource
+    /** Bei OAuth: wer das Token bekommen hat, fuer das Log. */
+    clientID?: string
     email?: string
     password?: string
     /**
@@ -100,3 +102,37 @@ export function hasCredentials(credentials: Credentials): boolean {
         credentials.refreshToken !== undefined
     )
 }
+
+// MARK: - OAuth
+
+/**
+ * Die kanonische Adresse dieses MCP-Servers (RFC 8707).
+ *
+ * Ein Zugangstoken ist an genau diesen Empfaenger gebunden. Steht hier etwas
+ * anderes als das, was der Autorisierungsserver in `aud` schreibt, wird jedes
+ * Token abgelehnt - lieber das, als Tokens anzunehmen, die fuer einen anderen
+ * Dienst gedacht waren.
+ */
+export const MCP_PUBLIC_URL = (
+    process.env.WATTWERK_MCP_PUBLIC_URL ?? "https://mcp.wattwerk.eliaspeeters.de/mcp"
+).replace(/\/+$/, "")
+
+/** Der Autorisierungsserver, auf den die Metadaten dieser Ressource verweisen. */
+export const OAUTH_ISSUER = (process.env.WATTWERK_OAUTH_ISSUER ?? API_URL).replace(/\/+$/, "")
+
+/**
+ * Dasselbe Geheimnis wie in der API.
+ *
+ * Damit prueft dieser Dienst ein Zugangstoken selbst, ohne die API zu fragen.
+ * Der Preis ist ein geteiltes Geheimnis zwischen zwei Diensten; der Gewinn ist,
+ * dass ein ungueltiges Token sofort mit 401 beantwortet wird - und genau das
+ * braucht ein MCP-Client, um von sich aus eine Anmeldung zu starten. Wuerde erst
+ * der spaetere Werkzeugaufruf scheitern, bliebe die Verbindung scheinbar in
+ * Ordnung und niemand faende den Weg zur Anmeldung.
+ *
+ * Ohne diesen Wert ist OAuth an diesem Dienst abgeschaltet; Zugangsschluessel
+ * funktionieren weiter.
+ */
+export const OAUTH_ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET ?? ""
+
+export const OAUTH_ENABLED = OAUTH_ACCESS_TOKEN_SECRET.length > 0

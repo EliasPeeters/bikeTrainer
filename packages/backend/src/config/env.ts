@@ -37,6 +37,19 @@ export const REFRESH_TOKEN_LIFETIME = process.env.REFRESH_TOKEN_LIFETIME ?? "90d
  * ist anderswo eine Sperre. Die Tests setzen sie hoch, damit nicht die
  * Begrenzung getestet wird, wo es um die Registrierung geht.
  */
+/**
+ * Die kanonische Adresse des MCP-Servers (RFC 8707).
+ *
+ * Ein Zugangstoken wird an genau diesen Empfaenger gebunden. Ohne die Bindung
+ * liesse sich ein Token, das fuer einen anderen Dienst ausgestellt wurde, hier
+ * verwenden - und umgekehrt.
+ */
+export const MCP_RESOURCE_URL =
+    process.env.MCP_RESOURCE_URL ?? "https://mcp.wattwerk.eliaspeeters.de/mcp"
+
+/** Wie lange ein OAuth-Auffrischungstoken gilt, in Tagen. */
+export const OAUTH_REFRESH_LIFETIME_DAYS = parseInt(process.env.OAUTH_REFRESH_LIFETIME_DAYS ?? "180", 10)
+
 export const REGISTER_RATE_LIMIT = parseInt(process.env.REGISTER_RATE_LIMIT ?? "5", 10)
 export const REGISTER_RATE_WINDOW_MS = parseInt(process.env.REGISTER_RATE_WINDOW_MS ?? "3600000", 10)
 export const LOGIN_RATE_LIMIT = parseInt(process.env.LOGIN_RATE_LIMIT ?? "5", 10)

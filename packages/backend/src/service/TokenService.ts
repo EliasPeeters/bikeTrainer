@@ -7,6 +7,16 @@ import {isApiKey} from "./ApiKeyToken"
 
 export interface JWTPayload {
     userID: number
+    /**
+     * Nur bei OAuth-Tokens. Ein Token aus der gewoehnlichen Anmeldung hat
+     * keinen - es *ist* der Nutzer und nicht jemand in seinem Auftrag.
+     */
+    scope?: string
+}
+
+/** Aus den OAuth-Bereichen wird dieselbe Abstufung wie bei Zugangsschluesseln. */
+export function scopeToPermission(scope: string | undefined): "read" | "full" {
+    return scope !== undefined && scope.split(" ").includes("wattwerk:write") ? "full" : "read"
 }
 
 export class TokenService {
@@ -59,7 +69,7 @@ export class TokenService {
             const resolved = await resolveApiKey(token)
             if (resolved !== null) {
                 response.locals.userID = resolved.userID
-                response.locals.apiKeyScope = resolved.scope
+                response.locals.delegatedScope = resolved.scope
             }
             return
         }
@@ -67,6 +77,11 @@ export class TokenService {
         const payload = this.validateAccessToken(token)
         if (payload !== undefined) {
             response.locals.userID = payload.userID
+            // Ein OAuth-Token kommt von einer Anwendung, die der Nutzer
+            // verbunden hat - sie darf nur, was der Bereich hergibt.
+            if (payload.scope !== undefined) {
+                response.locals.delegatedScope = scopeToPermission(payload.scope)
+            }
         }
     }
 
@@ -99,7 +114,10 @@ export class TokenService {
         try {
             const payload = jwt.verify(token, secret)
             if (typeof payload === "object" && payload !== null && typeof payload.userID === "number") {
-                return {userID: payload.userID}
+                return {
+                    userID: payload.userID,
+                    scope: typeof payload.scope === "string" ? payload.scope : undefined,
+                }
             }
             return undefined
         } catch {

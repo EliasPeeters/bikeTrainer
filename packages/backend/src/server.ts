@@ -45,6 +45,12 @@ export class Server {
     private errorHandlingConfigured = false
 
     jsonParser = bodyParser.json({limit: "1mb"})
+    /**
+     * Fuer die Zustimmungsseite von OAuth: ein HTML-Formular schickt
+     * `application/x-www-form-urlencoded`, nicht JSON. Der Browser des Nutzers
+     * laesst sich das nicht ausreden.
+     */
+    formParser = bodyParser.urlencoded({extended: false, limit: "64kb"})
 
     constructor() {
         this.app = express()
@@ -153,6 +159,14 @@ export class Server {
                     void wrapRequest(options, expressRequest as never, expressResponse as never, next, handler)
                 })
             },
+            postForm: <RequestBody, ResponseBody>(handler: Handler<Options, Route, RequestBody, ResponseBody>) => {
+                // Beide Parser: die Zustimmungsseite schickt ein Formular, ein
+                // OAuth-Client schickt an /token je nach Bibliothek Formular
+                // oder JSON. Es greift der, dessen Content-Type passt.
+                this.app.post(path, this.formParser, this.jsonParser, (expressRequest, expressResponse, next) => {
+                    void wrapRequest(options, expressRequest as never, expressResponse as never, next, handler)
+                })
+            },
         }
     }
 }
@@ -160,11 +174,11 @@ export class Server {
 // MARK: - Routen-Optionen
 
 /**
- * `allowApiKey: false` schliesst Zugangsschluessel aus und verlangt eine echte
- * Anmeldung. Das gilt fuer die Routen, mit denen man Schluessel verwaltet oder
- * das Konto loescht: sonst koennte sich ein abgegriffener Schluessel selbst
- * verlaengern, indem er einen zweiten anlegt, und das Zuruecknehmen liefe ins
- * Leere.
+ * `allowDelegated: false` verlangt eine echte Anmeldung und schliesst alles
+ * aus, was in fremdem Auftrag zugreift - Zugangsschluessel wie OAuth-Tokens.
+ * Das gilt fuer die Routen, mit denen man Schluessel und Verbindungen verwaltet
+ * oder das Konto loescht: sonst verlaengerte sich ein abgegriffener Zugang
+ * selbst, indem er einen zweiten anlegt, und das Zuruecknehmen liefe ins Leere.
  */
 export type RequestOptions =
     | {
@@ -176,13 +190,13 @@ export type RequestOptions =
           databaseTransaction?: boolean
           /** `true` laedt den Nutzer und legt ihn in `request.user`. */
           includeUser?: false
-          allowApiKey?: boolean
+          allowDelegated?: boolean
       }
     | {
           authenticated: true
           databaseTransaction?: boolean
           includeUser: true
-          allowApiKey?: boolean
+          allowDelegated?: boolean
       }
 
 /**
@@ -228,8 +242,11 @@ type DBUserType = import("./db/DBUser").DBUser
 
 interface RequestLocals {
     userID?: number
-    /** Gesetzt, wenn die Identitaet aus einem Zugangsschluessel kommt. */
-    apiKeyScope?: ApiKeyScope
+    /**
+     * Gesetzt, wenn der Zugriff in fremdem Auftrag geschieht - ueber einen
+     * Zugangsschluessel oder ein OAuth-Token. Bei einer echten Anmeldung nicht.
+     */
+    delegatedScope?: ApiKeyScope
     [key: string]: unknown
 }
 
@@ -252,24 +269,25 @@ async function wrapRequest<Options extends RequestOptions, RequestBody, Response
             return
         }
 
-        const apiKeyScope = expressResponse.locals.apiKeyScope
-        if (apiKeyScope !== undefined && options.authenticated) {
-            if (options.allowApiKey === false) {
+        const delegatedScope = expressResponse.locals.delegatedScope
+        if (delegatedScope !== undefined && options.authenticated) {
+            if (options.allowDelegated === false) {
                 failure<ResponseBody>(
                     403,
                     "UNAUTHORIZED",
-                    "Das geht nur mit einer richtigen Anmeldung, nicht mit einem Zugangsschlüssel."
+                    "Das geht nur mit einer richtigen Anmeldung - nicht mit einem Zugangsschlüssel " +
+                        "und nicht über eine verbundene Anwendung."
                 ).buildResponse(expressResponse)
                 return
             }
             // Lesen heisst GET. Die Regel steht hier und nicht in jedem
             // Handler, weil eine vergessene Pruefung sonst stillschweigend
             // Schreibrecht gaebe - und genau das soll `read` ausschliessen.
-            if (apiKeyScope === "read" && expressRequest.method !== "GET") {
+            if (delegatedScope === "read" && expressRequest.method !== "GET") {
                 failure<ResponseBody>(
                     403,
                     "UNAUTHORIZED",
-                    "Dieser Zugangsschlüssel darf nur lesen."
+                    "Dieser Zugang darf nur lesen."
                 ).buildResponse(expressResponse)
                 return
             }

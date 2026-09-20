@@ -21,14 +21,14 @@ const LAST_USED_RESOLUTION_MS = 60 * 60 * 1000
  * Zugangsschlüssel anlegen, auflisten, zurücknehmen.
  *
  * Die Routen sind bewusst nicht mit einem Schlüssel erreichbar
- * (`allowApiKey: false`): sonst könnte sich ein abgegriffener Schlüssel selbst
+ * (`allowDelegated: false`): sonst könnte sich ein abgegriffener Schlüssel selbst
  * verlängern, indem er einen zweiten anlegt, und das Zurücknehmen liefe ins
  * Leere.
  */
 export class ApiKeyService {
     public configure(server: Server) {
         server
-            .route("/me/keys", {authenticated: true, includeUser: true, allowApiKey: false})
+            .route("/me/keys", {authenticated: true, includeUser: true, allowDelegated: false})
             .get<ApiKeyListResponse>(async (request) => {
                 const keys = await DBApiKey.findAll({
                     where: {userID: request.user.id},
@@ -38,7 +38,7 @@ export class ApiKeyService {
             })
 
         server
-            .route("/me/keys", {authenticated: true, includeUser: true, allowApiKey: false})
+            .route("/me/keys", {authenticated: true, includeUser: true, allowDelegated: false})
             .postJSON<CreateApiKeyRequest, CreateApiKeyResponse>(async (request) => {
                 const body = request.body
                 if (body === null || typeof body !== "object") {
@@ -74,7 +74,7 @@ export class ApiKeyService {
             })
 
         server
-            .route("/me/keys/:id", {authenticated: true, includeUser: true, allowApiKey: false})
+            .route("/me/keys/:id", {authenticated: true, includeUser: true, allowDelegated: false})
             .delete<{deleted: boolean}>(async (request) => {
                 const id = parseInt(request.parameter.id, 10)
                 if (!Number.isFinite(id)) {

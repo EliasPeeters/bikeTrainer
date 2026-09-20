@@ -83,6 +83,10 @@ Denselben Server gibt es auch über HTTP, als Container im Produktionsstack
 unter `https://mcp.wattwerk.eliaspeeters.de/mcp`. Dort bringt jeder Aufruf sein
 Token selbst mit, der Dienst speichert keines.
 
+Wer aus **ChatGPT** oder dem Browser verbinden will, geht über OAuth: „Verbinden"
+klicken, auf einer Wattwerk-Seite anmelden, Zugriff erlauben – kein Token zum
+Kopieren. Die API ist dafür zugleich Autorisierungsserver.
+
 **Zum Weitergeben** gibt es zwei fertige Pakete: ein Bundle für Claude Desktop
 (`yarn workspace @wattwerk/mcp build:bundle` → Doppelklick, Schlüssel in den
 Dialog, fertig – Node bringt Claude selbst mit) und ein Plugin für Claude Code
@@ -178,10 +182,11 @@ wieder.
 im Web. Danach gleichen sich Programme, Ordner, Fahrerprofil und gefahrene
 Einheiten ab. Ohne Konto bleibt alles lokal und nichts fehlt.
 
-**Zugangsschlüssel.** Im Portal unter *Profil* anzulegen: ein Schlüssel für
-alles, was in deinem Namen auf die API zugreift. Einzeln zurücknehmbar,
-wahlweise nur mit Leserecht – anders als das Passwort, das vollen Zugriff gibt
-und in keiner Konfigurationsdatei stehen sollte.
+**Zugangsschlüssel und Verbindungen.** Im Portal unter *Profil*: ein Schlüssel
+für alles, was in deinem Namen auf die API zugreift, und eine Liste der
+Anwendungen, denen du über OAuth Zugriff erlaubt hast. Beides einzeln
+zurücknehmbar, wahlweise nur mit Leserecht – anders als das Passwort, das
+vollen Zugriff gibt und in keiner Konfigurationsdatei stehen sollte.
 
 **Bibliothek wie ein Streaming-Dienst.** Die Übersicht besteht aus Reihen:
 „Zuletzt gefahren", „Deine Programme", „Top-Tipps", „Kurz und knackig", „Aus dem
@@ -211,6 +216,8 @@ HTTP-Routen – keine zweite Geschäftslogik, die auseinanderlaufen könnte.
 | API-Umfang | Konto, Profil, Einheiten, Programme, Ordner | Genau das, was App und Portal brauchen |
 | Zugangsschlüssel | Eigene Tabelle statt langlebiger Tokens | Ein Auffrischungstoken lässt sich nur zurückziehen, indem man das Geheimnis wechselt – und wirft damit auch alle Apps raus |
 | Schlüssel-Rechte | Nur `read` und `full`, `read` heißt GET | Feingranulare Rechte, die niemand versteht, werden auf „alles" gestellt |
+| OAuth-Server | In der API, nicht daneben | Die Nutzer liegen dort. Ein zweiter Ort für Identitäten wäre der Anfang von zweien, die auseinanderlaufen |
+| OAuth-Bereiche | Nur `wattwerk:read` und `wattwerk:write` | Eine Zustimmungsseite mit zwölf Häkchen liest niemand, und am Ende erlaubt jeder alles |
 | MCP-Werkzeuge | Kein Konto anlegen, kein Konto löschen | Registrieren ergibt von dort aus keinen Sinn, und ein Werkzeug, das auf Zuruf alles unwiderruflich löscht, ist ein wartendes Missgeschick |
 | MCP über HTTP | Token je Aufruf im Header, keins gespeichert | Ein Dienst, der die Zugangsdaten eines Kontos hält, gibt sie jedem, der die Adresse kennt |
 | MCP-Antworten | Lesbare Zeilen statt JSON | Vierzig Programme als JSON sind hunderttausend Zeichen Blöcke, von denen fast nichts gebraucht wird. Einzelne Programme gibt es auf Wunsch roh |
@@ -223,9 +230,11 @@ HTTP-Routen – keine zweite Geschäftslogik, die auseinanderlaufen könnte.
 ## Geprüft und nicht geprüft
 
 **Geprüft.** Beide App-Targets bauen (Xcode 27, Swift 6), 82 Swift-Tests grün.
-70 Backend-Tests grün, davon 52 gegen eine echte MariaDB. 40 MCP-Tests grün,
+117 Backend-Tests grün, davon 87 gegen eine echte MariaDB. 49 MCP-Tests grün,
 dazu alle zwanzig Werkzeuge einmal von Hand gegen den laufenden Stack — über
-stdio, über HTTP und aus dem fertigen Container heraus. Der API-Stack fährt
+stdio, über HTTP und aus dem fertigen Container heraus. Der OAuth-Ablauf ist
+einmal vollständig von Hand durchgespielt: registrieren, zustimmen, Code
+tauschen, Token benutzen, auffrischen, trennen. Der API-Stack fährt
 mit `docker compose up` hoch, Flyway spielt beide Migrationen ein. Im Browser
 durchgespielt: registrieren, Programm mit Intervallserie bauen, speichern,
 veröffentlichen. Und sechs Swift-Tests fahren den echten `APIClient` gegen den

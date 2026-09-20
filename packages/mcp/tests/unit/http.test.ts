@@ -1,5 +1,6 @@
 import type {AddressInfo} from "node:net"
 import type {Server} from "node:http"
+import jwt from "jsonwebtoken"
 import {createHttpServer} from "../../src/http"
 
 /**
@@ -92,8 +93,13 @@ describe("Torwache", () => {
     it("weist einen Aufruf ohne Token ab und sagt, was fehlt", async () => {
         const response = await call("/mcp", {body: {jsonrpc: "2.0", id: 1, method: "tools/list"}})
         expect(response.status).toBe(401)
-        expect(response.headers.get("www-authenticate")).toBe('Bearer realm="wattwerk"')
-        expect(response.body.error.message).toContain("Authorization: Bearer wk_")
+        const challenge = response.headers.get("www-authenticate") ?? ""
+        expect(challenge).toContain('Bearer realm="wattwerk"')
+        // Ohne diesen Verweis findet ein Client den Autorisierungsserver nicht.
+        expect(challenge).toContain(
+            'resource_metadata="https://mcp.test/.well-known/oauth-protected-resource"'
+        )
+        expect(challenge).toContain('scope="wattwerk:read wattwerk:write"')
         // Ohne Token darf nicht einmal die API angefasst werden.
         expect(apiCalls).toHaveLength(0)
     })
@@ -200,5 +206,84 @@ describe("Werkzeuge über HTTP", () => {
         })
         expect(response.body.result.isError).toBe(true)
         expect(response.body.result.content[0].text).toContain("Auffrischungstoken")
+    })
+})
+
+
+describe("OAuth", () => {
+    const secret = "test-access-secret"
+
+    function token(payload: Record<string, unknown>, options: jwt.SignOptions = {}): string {
+        return jwt.sign(payload, secret, {
+            issuer: "http://api.test",
+            audience: "https://mcp.test/mcp",
+            expiresIn: "15m",
+            ...options,
+        })
+    }
+
+    it("liefert das Metadatendokument ohne Token - genau darum geht es", async () => {
+        const response = await call("/.well-known/oauth-protected-resource", {method: "GET"})
+        expect(response.status).toBe(200)
+        expect(response.body.resource).toBe("https://mcp.test/mcp")
+        expect(response.body.authorization_servers).toEqual(["http://api.test"])
+        expect(response.body.scopes_supported).toEqual(["wattwerk:read", "wattwerk:write"])
+    })
+
+    it("liefert es auch unter dem angehängten Pfad der Ressource", async () => {
+        const response = await call("/.well-known/oauth-protected-resource/mcp", {method: "GET"})
+        expect(response.status).toBe(200)
+        expect(response.body.resource).toBe("https://mcp.test/mcp")
+    })
+
+    it("nimmt ein gültiges Zugangstoken an und reicht es an die API weiter", async () => {
+        const accessToken = token({userID: 7, scope: "wattwerk:read wattwerk:write", client_id: "wc_1"})
+        await call("/mcp", {
+            token: accessToken,
+            body: {jsonrpc: "2.0", id: 1, method: "tools/call", params: {name: "list_my_workouts", arguments: {}}},
+        })
+
+        // Kein Eintauschen: ein Zugangstoken ist schon das, was die API will.
+        expect(apiCalls.filter((entry) => entry.url.includes("/auth/"))).toEqual([])
+        expect(apiCalls[0].url).toContain("/workouts")
+    })
+
+    it("lehnt ein Token ab, das für einen anderen Dienst ausgestellt wurde", async () => {
+        const foreign = token({userID: 7, scope: "wattwerk:read"}, {audience: "https://woanders.test/mcp"})
+        const response = await call("/mcp", {token: foreign, body: {jsonrpc: "2.0", id: 1, method: "tools/list"}})
+
+        expect(response.status).toBe(401)
+        expect(response.headers.get("www-authenticate")).toContain('error="invalid_token"')
+        expect(response.headers.get("www-authenticate")).toContain("resource_metadata=")
+        expect(apiCalls).toHaveLength(0)
+    })
+
+    it("lehnt ein abgelaufenes Token ab", async () => {
+        const expired = token({userID: 7, scope: "wattwerk:read"}, {expiresIn: "-1m"})
+        const response = await call("/mcp", {token: expired, body: {jsonrpc: "2.0", id: 1, method: "tools/list"}})
+
+        expect(response.status).toBe(401)
+        expect(response.body.error.message).toContain("abgelaufen")
+    })
+
+    it("lehnt ein Token mit falscher Unterschrift ab", async () => {
+        const forged = jwt.sign({userID: 7, scope: "wattwerk:read"}, "falsches-geheimnis", {
+            issuer: "http://api.test",
+            audience: "https://mcp.test/mcp",
+            expiresIn: "15m",
+        })
+        const response = await call("/mcp", {token: forged, body: {jsonrpc: "2.0", id: 1, method: "tools/list"}})
+
+        expect(response.status).toBe(401)
+        expect(apiCalls).toHaveLength(0)
+    })
+
+    it("lässt ein gewöhnliches Auffrischungstoken weiterhin durch", async () => {
+        // Es traegt keinen Bereich und ist damit erkennbar kein OAuth-Token.
+        const refresh = jwt.sign({userID: 7}, "irgendein-anderes-geheimnis", {expiresIn: "90d"})
+        const response = await call("/mcp", {token: refresh, body: {jsonrpc: "2.0", id: 1, method: "tools/list"}})
+
+        expect(response.status).toBe(200)
+        expect(response.body.result.tools).toHaveLength(20)
     })
 })

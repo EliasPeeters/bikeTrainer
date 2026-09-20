@@ -4,6 +4,7 @@ import type {
     AuthResponse,
     CollectionDTO,
     CollectionListResponse,
+    ConnectionListResponse,
     CreateApiKeyRequest,
     CreateApiKeyResponse,
     DiscoveryResponse,
@@ -209,6 +210,12 @@ export const api = {
     },
     deleteApiKey(id: number) {
         return call<{deleted: boolean}>(`/me/keys/${id}`, {method: "DELETE"})
+    },
+    connections() {
+        return call<ConnectionListResponse>("/me/connections")
+    },
+    deleteConnection(id: number) {
+        return call<{deleted: boolean}>(`/me/connections/${id}`, {method: "DELETE"})
     },
     sessions(limit = 50) {
         return call<TrainingSessionListResponse>("/sessions", {query: {limit}})

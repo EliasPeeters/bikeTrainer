@@ -111,6 +111,7 @@ dessen kurze Laufzeit wäre wirkungslos.
 | `LANDINGPAGE_PORT` | `8089` |
 | `MCP_PORT` | `8090` |
 | `MCP_ALLOWED_ORIGINS` | leer |
+| `MCP_RESOURCE_URL` | `https://mcp.wattwerk.eliaspeeters.de/mcp` |
 
 `API_PORT`, `LANDINGPAGE_PORT` und `MCP_PORT` binden **nur auf 127.0.0.1** — von
 außen ist darüber nichts erreichbar. Sie sind zum Nachsehen auf dem Server da
@@ -121,8 +122,16 @@ Browser und schickt gar keinen Origin. Ein Eintrag ist nur nötig, wenn eine
 Webseite den Dienst direkt aufruft — und wäre sonst ein Angebot an fremde
 Seiten, mit dem Token des Nutzers zu arbeiten.
 
-Für den MCP-Server gibt es **kein Secret**: er hält keine Zugangsdaten. Jeder
-Aufruf bringt sein Token im `Authorization`-Header mit.
+`MCP_RESOURCE_URL` muss **genau** der Adresse entsprechen, unter der der
+MCP-Server erreichbar ist. Die API stellt OAuth-Tokens für diesen Empfänger
+aus, und der MCP-Server lehnt alles ab, was nicht für ihn ausgestellt wurde –
+stimmen die beiden nicht überein, verbindet sich niemand.
+
+Der MCP-Server bekommt `ACCESS_TOKEN_SECRET` mit, dasselbe wie die API. Nur
+damit kann er ein Zugangstoken selbst prüfen und auf ein ungültiges sofort mit
+401 antworten – und genau das braucht ein Client, um von sich aus eine Anmeldung
+zu starten. Eigene Zugangsdaten hält er trotzdem keine: jeder Aufruf bringt sein
+Token im `Authorization`-Header mit.
 
 ### Den Serverschlüssel anheften (empfohlen)
 

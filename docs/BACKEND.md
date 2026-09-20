@@ -56,6 +56,12 @@ statt im Handler auf `undefined` zu prüfen.
 | GET | `/me/keys` | ja, **ohne Schlüssel** | Eigene Zugangsschlüssel |
 | POST | `/me/keys` | ja, **ohne Schlüssel** | Schlüssel anlegen (der Schlüssel steht nur in dieser Antwort) |
 | DELETE | `/me/keys/:id` | ja, **ohne Schlüssel** | Schlüssel zurücknehmen |
+| GET | `/me/connections` | ja, **nur echte Anmeldung** | Verbundene Anwendungen |
+| DELETE | `/me/connections/:id` | ja, **nur echte Anmeldung** | Verbindung trennen |
+| GET | `/.well-known/oauth-authorization-server` | – | OAuth-Metadaten (RFC 8414) |
+| GET/POST | `/oauth/authorize` | – | Anmeldung und Zustimmung, als HTML-Seite |
+| POST | `/oauth/token` | – | Code gegen Tokens, und Auffrischen |
+| POST | `/oauth/register` | – | Dynamic Client Registration |
 | POST | `/sessions` | ja | Gefahrene Einheit hochladen |
 | GET | `/sessions` | ja | Verlauf plus Wochenbelastung |
 | DELETE | `/sessions/:id` | ja | Einheit löschen |
@@ -110,6 +116,30 @@ Drei Grenzen sind eingezogen:
 schreiben hieße, dass jede Leseanfrage ein Schreibvorgang ist – bei einem
 Assistenten, der zehn Werkzeuge hintereinander aufruft, zehn Updates auf
 dieselbe Zeile.
+
+### OAuth
+
+Die API ist zugleich Autorisierungsserver für den MCP-Server. Gebraucht wird
+das für ChatGPT und die Connectors auf claude.ai: dort gibt es kein Feld für
+einen Zugangsschlüssel, sondern nur „Verbinden".
+
+Umgesetzt ist die Teilmenge, die die MCP-Spezifikation verlangt: Authorization
+Code mit PKCE (nur `S256`), Client ID Metadata Documents, Dynamic Client
+Registration als Rückfallebene, Tokens mit `aud` auf den MCP-Server (RFC 8707),
+`iss` in der Antwort (RFC 9207) und rotierende Auffrischungstokens. Die Details
+und die Gründe stehen in [MCP.md](MCP.md).
+
+Drei Dinge, die beim Lesen des Codes auffallen sollen:
+
+* **Bei falschem Client oder falscher `redirect_uri` wird nicht
+  weitergeleitet**, sondern eine Fehlerseite gezeigt. Sonst wäre die
+  Fehlerbehandlung selbst der offene Umleiter, den sie verhindern soll.
+* **Ein zweites Einlösen desselben Codes löscht alle Verbindungen** dieses
+  Clients zu diesem Konto. Ein Code, der zweimal kommt, wurde unterwegs
+  mitgelesen.
+* **`allowDelegated: false`** an den Routen für Schlüssel, Verbindungen und
+  Kontolöschung. Ein Zugang, der in fremdem Auftrag arbeitet, darf sich nicht
+  selbst verlängern.
 
 ### Programme, Sichtbarkeit und Sammlungen
 

@@ -250,6 +250,92 @@ Ausgeliefert wird er mit dem übrigen Stack, siehe
 DNS-Name ist bereits durch den Wildcard-Eintrag auf `*.wattwerk.eliaspeeters.de`
 abgedeckt; es braucht keinen eigenen Eintrag.
 
+## OAuth: verbinden ohne Schlüssel
+
+Für ChatGPT und die Connectors auf claude.ai reicht ein Zugangsschlüssel nicht:
+dort gibt es kein Feld dafür, sondern nur „Verbinden". Dahinter liegt OAuth.
+Der Nutzer klickt, landet auf einer Wattwerk-Seite, meldet sich mit dem Konto
+an, das er ohnehin hat, erlaubt den Zugriff – und bekommt nie ein Token zu
+sehen.
+
+**Der MCP-Server ist dabei der Resource Server, die API der
+Autorisierungsserver.** Die Nutzer liegen ohnehin in der API; einen zweiten Ort
+für Identitäten aufzumachen wäre die schlechtere Antwort.
+
+### Was wo liegt
+
+| Dokument | Wo | Wozu |
+|---|---|---|
+| `/.well-known/oauth-protected-resource` | MCP-Server | Verweist auf den Autorisierungsserver (RFC 9728) |
+| `/.well-known/oauth-authorization-server` | API | Endpunkte und Fähigkeiten (RFC 8414) |
+| `/oauth/authorize` | API | Anmeldung und Zustimmung, als HTML-Seite |
+| `/oauth/token` | API | Code gegen Tokens, und Auffrischen |
+| `/oauth/register` | API | Dynamic Client Registration |
+
+Der Weg beginnt bei einem 401 des MCP-Servers. Dessen `WWW-Authenticate`-Header
+trägt `resource_metadata="…"` – ohne diesen Verweis fände ein Client den
+Autorisierungsserver nicht und meldete nur, dass etwas nicht ging.
+
+### Was umgesetzt ist
+
+* **Authorization Code mit PKCE**, nur `S256`. `plain` wäre PKCE, das nichts
+  schützt.
+* **Client ID Metadata Documents**: eine HTTPS-URL als `client_id`, hinter der
+  das Metadatendokument des Clients liegt. Es wird bei Bedarf geholt und
+  geprüft (`client_id` muss der URL entsprechen), zehn Minuten
+  zwischengespeichert. Das ist der vorgesehene Weg – es entsteht keine Kopie,
+  die veralten kann.
+* **Dynamic Client Registration** als Rückfallebene. Offiziell veraltet, aber
+  noch das, was viele Clients tun.
+* **Tokens an den Empfänger gebunden** (RFC 8707): das Zugangstoken trägt die
+  Adresse des MCP-Servers in `aud`, und der lehnt alles ab, was nicht für ihn
+  ausgestellt wurde.
+* **Auffrischungstokens rotieren.** Jedes Auffrischen tauscht das Token aus;
+  taucht das alte noch einmal auf, ist es abgegriffen – und die Verbindung ist
+  dann ohnehin schon geschlossen.
+* **`iss` in der Antwort** (RFC 9207), damit der Client prüfen kann, dass sie
+  von dem Server kommt, den er gefragt hat.
+
+### Zwei Bereiche, mehr nicht
+
+`wattwerk:read` und `wattwerk:write`. Lesen ist immer dabei – ein Schreibrecht
+ohne Leserecht wäre sinnlos. Feiner abzustufen hieße, eine Zustimmungsseite zu
+bauen, die niemand liest, und am Ende stellt jeder alles an.
+
+Die Abstufung wirkt an derselben Stelle wie bei den Zugangsschlüsseln: `read`
+darf nur GET. Und eine verbundene Anwendung darf nie Schlüssel oder
+Verbindungen verwalten oder das Konto löschen – sonst tränne sie die Konkurrenz
+oder sich selbst wieder hinein.
+
+### Was der Nutzer sieht
+
+Eine Seite mit dem Namen der Anwendung, den Rechten im Klartext, Feldern für
+E-Mail und Passwort und zwei Knöpfen. Danach steht die Verbindung im Portal
+unter *Profil → Verbundene Anwendungen* und lässt sich dort trennen; das wirkt
+sofort.
+
+### Das geteilte Geheimnis
+
+Der MCP-Server prüft Zugangstokens **selbst**, mit demselben
+`ACCESS_TOKEN_SECRET` wie die API. Der Preis ist ein Geheimnis, das zwei
+Dienste kennen. Der Gewinn ist, dass ein ungültiges Token sofort mit 401
+beantwortet wird – und genau das braucht ein MCP-Client, um von sich aus eine
+Anmeldung zu starten. Würde erst der spätere Werkzeugaufruf scheitern, bliebe
+die Verbindung scheinbar in Ordnung, und niemand fände den Weg zur Anmeldung.
+
+Ohne `ACCESS_TOKEN_SECRET` ist OAuth am MCP-Server abgeschaltet;
+Zugangsschlüssel funktionieren weiter.
+
+### Was noch fehlt
+
+`ACCESS_TOKEN_SECRET` zu wechseln macht **alle** Zugangstokens ungültig, auch
+die der Apps. Für einen einzelnen Nutzer ist das Trennen im Portal der Weg;
+einen Notausschalter für alle gibt es nicht.
+
+Ob ChatGPT die zwanzig Werkzeuge so anzeigt, wie Claude es tut, ist ungeprüft:
+dessen Connector-Oberfläche erwartet für die Suche eigene `search`- und
+`fetch`-Werkzeuge. Der Anmeldeweg steht, die Darstellung dort nicht.
+
 ## Zum Weitergeben: Bundle und Plugin
 
 Der Weg über `.mcp.json` und gebaute Dateien ist ein Entwickler-Weg. Für
@@ -311,6 +397,7 @@ packages/mcp
     ├── stdio.ts        Einstieg für den stdio-Betrieb
     ├── http.ts         Der HTTP-Dienst: Torwache, Token je Aufruf, CORS
     ├── serve.ts        Einstieg für den HTTP-Betrieb
+    ├── oauth.ts        Dieser Dienst als OAuth-Resource-Server
     ├── config.ts       Der eine Ort, an dem die Umgebung gelesen wird
     ├── api.ts          Die API als Methoden, samt Anmeldung und Wiederholung
     ├── schemas.ts      Eingaben der Werkzeuge (zod) und Umwandlung ins Drahtformat

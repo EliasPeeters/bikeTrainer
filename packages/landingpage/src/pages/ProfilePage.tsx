@@ -2,6 +2,7 @@ import {useState} from "react"
 import {useAuth} from "../api/auth"
 import {api, ApiError} from "../api/client"
 import {ApiKeysCard} from "./ApiKeysCard"
+import {ConnectionsCard} from "./ConnectionsCard"
 
 export function ProfilePage() {
     const {user, setUser} = useAuth()
@@ -116,6 +117,8 @@ export function ProfilePage() {
                     </span>
                 </div>
             </form>
+
+            <ConnectionsCard />
 
             <ApiKeysCard />
 

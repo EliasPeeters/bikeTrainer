@@ -94,6 +94,10 @@ services:
       # Welche Web-Herkünfte im Browser auf die API zugreifen dürfen. Die Apps
       # schicken keinen Origin-Header und sind davon nicht betroffen.
       CORS_ORIGINS: ${CORS_ORIGINS:-https://wattwerk.eliaspeeters.de}
+      # Für wen der Autorisierungsserver Tokens ausstellt. Muss genau der
+      # Adresse entsprechen, unter der der MCP-Server erreichbar ist - sonst
+      # lehnt der jedes Token als "für einen anderen Dienst" ab.
+      MCP_RESOURCE_URL: ${MCP_RESOURCE_URL:-https://mcp.wattwerk.eliaspeeters.de/mcp}
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health > /dev/null || exit 1"]
       interval: 30s
@@ -127,6 +131,15 @@ services:
       # Origin. Hier etwas einzutragen ist nur nötig, wenn eine Webseite den
       # Dienst direkt aufruft.
       WATTWERK_MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS:-}
+      # Die eigene Adresse, an die OAuth-Tokens gebunden sind, und der
+      # Autorisierungsserver, auf den die Metadaten verweisen.
+      WATTWERK_MCP_PUBLIC_URL: ${MCP_RESOURCE_URL:-https://mcp.wattwerk.eliaspeeters.de/mcp}
+      WATTWERK_OAUTH_ISSUER: ${BASE_URL:-https://api.wattwerk.eliaspeeters.de}
+      # Dasselbe Geheimnis wie in der API: damit prüft dieser Dienst ein
+      # Zugangstoken selbst und antwortet auf ein ungültiges sofort mit 401 -
+      # und genau das braucht ein MCP-Client, um von sich aus eine Anmeldung zu
+      # starten. Ohne den Wert ist OAuth hier aus, Zugangsschlüssel gehen weiter.
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET:?ACCESS_TOKEN_SECRET fehlt}
       # Der Dienst hält selbst keine Zugangsdaten: jeder Aufruf bringt sein
       # Token im Authorization-Header mit.
     healthcheck:

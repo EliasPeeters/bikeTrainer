@@ -1,8 +1,15 @@
 import {StreamableHTTPServerTransport} from "@modelcontextprotocol/sdk/server/streamableHttp.js"
 import {createServer, IncomingMessage, ServerResponse} from "node:http"
 import {WattwerkClient} from "./api"
-import {API_URL, credentialsFromAuthorizationHeader, HTTP_ALLOWED_ORIGINS} from "./config"
+import {
+    API_URL,
+    Credentials,
+    credentialsFromAuthorizationHeader,
+    HTTP_ALLOWED_ORIGINS,
+    OAUTH_ENABLED,
+} from "./config"
 import {createMcpServer} from "./index"
+import {challengeHeader, checkAccessToken, protectedResourceMetadata, PROTECTED_RESOURCE_PATH} from "./oauth"
 
 /**
  * Derselbe MCP-Server, nur ueber HTTP statt stdio.
@@ -47,7 +54,15 @@ async function handle(request: IncomingMessage, response: ServerResponse) {
     // Damit Docker und der Proxy sehen, dass der Dienst lebt - ohne Token, weil
     // eine Bereitschaftspruefung keine Zugangsdaten haben kann.
     if (path === "/health") {
-        sendJSON(response, 200, {status: "ok", api: API_URL})
+        sendJSON(response, 200, {status: "ok", api: API_URL, oauth: OAUTH_ENABLED})
+        return
+    }
+
+    // Das Metadatendokument dieser Ressource (RFC 9728). Ohne Token, denn es
+    // ist genau das, was ein Client liest, *weil* er noch keines hat. Manche
+    // Clients haengen den Pfad der Ressource an, deshalb auch alles darunter.
+    if (path === PROTECTED_RESOURCE_PATH || path.startsWith(`${PROTECTED_RESOURCE_PATH}/`)) {
+        sendJSON(response, 200, protectedResourceMetadata())
         return
     }
 
@@ -64,22 +79,17 @@ async function handle(request: IncomingMessage, response: ServerResponse) {
         return
     }
 
-    const credentials = credentialsFromAuthorizationHeader(request.headers.authorization)
-    if (credentials === null) {
-        // Der Header nach RFC 6750 - daran erkennt ein Client, dass ihm ein
-        // Token fehlt, statt einen kaputten Server zu vermuten.
-        response.setHeader("WWW-Authenticate", 'Bearer realm="wattwerk"')
-        sendJSON(
-            response,
-            401,
-            rpcError(
-                -32001,
-                "Kein Token. Schicke \"Authorization: Bearer wk_...\" mit - einen " +
-                    "Zugangsschlüssel aus dem Wattwerk-Portal unter Profil → Zugangsschlüssel."
-            )
-        )
+    const resolved = resolveCredentials(request.headers.authorization)
+    if ("challenge" in resolved) {
+        // Der Header nach RFC 6750 und RFC 9728: daran erkennt ein Client, dass
+        // ihm ein Token fehlt *und wo er eins bekommt*. Ohne den Verweis auf das
+        // Metadatendokument faende er den Autorisierungsserver nicht und meldete
+        // nur, dass etwas nicht ging.
+        response.setHeader("WWW-Authenticate", resolved.challenge)
+        sendJSON(response, 401, rpcError(-32001, resolved.message))
         return
     }
+    const credentials = resolved.credentials
 
     let body: unknown
     try {
@@ -124,6 +134,48 @@ function applyCORS(request: IncomingMessage, response: ServerResponse) {
     response.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS")
     response.setHeader("Access-Control-Allow-Headers", "content-type, authorization, mcp-session-id, mcp-protocol-version")
     response.setHeader("Access-Control-Max-Age", "86400")
+}
+
+/**
+ * Woraus die Identitaet dieses Aufrufs kommt.
+ *
+ * Drei Wege, in dieser Reihenfolge: ein Zugangsschluessel aus dem Portal, ein
+ * OAuth-Zugangstoken, und - fuer alte Konfigurationen - ein Auffrischungstoken.
+ * Ein OAuth-Token, das nicht stimmt, ist dabei etwas anderes als keines: es
+ * wird abgelehnt, statt als Auffrischungstoken durchgereicht zu werden.
+ */
+function resolveCredentials(
+    header: string | undefined
+): {credentials: Credentials} | {challenge: string; message: string} {
+    const fallback = credentialsFromAuthorizationHeader(header)
+    if (fallback === null) {
+        return {
+            challenge: challengeHeader(),
+            message: OAUTH_ENABLED
+                ? "Kein Token. Melde dich über den Autorisierungsserver an, oder schicke einen " +
+                  "Zugangsschlüssel als \"Authorization: Bearer wk_...\" mit."
+                : "Kein Token. Schicke \"Authorization: Bearer wk_...\" mit - einen " +
+                  "Zugangsschlüssel aus dem Wattwerk-Portal unter Profil → Zugangsschlüssel.",
+        }
+    }
+
+    // Ein Zugangsschluessel wird hier nicht geprueft: das kann nur die API, die
+    // ihn kennt. Er faellt beim ersten Werkzeugaufruf auf, mit klarer Meldung.
+    if (fallback.apiKey !== undefined) {
+        return {credentials: fallback}
+    }
+
+    const checked = checkAccessToken(fallback.refreshToken ?? "")
+    if (checked === null) {
+        return {credentials: fallback}
+    }
+    if (!checked.ok) {
+        return {
+            challenge: challengeHeader(checked.error, checked.description),
+            message: checked.description,
+        }
+    }
+    return {credentials: checked.credentials}
 }
 
 async function readBody(request: IncomingMessage): Promise<unknown> {
