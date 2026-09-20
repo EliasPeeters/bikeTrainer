@@ -2,6 +2,7 @@ import type {CollectionDTO, DiscoveryResponse, WorkoutDTO} from "@wattwerk/share
 import {useCallback, useEffect, useState} from "react"
 import {Link, useNavigate} from "react-router-dom"
 import {api, ApiError} from "../api/client"
+import {HorizontalScroller} from "../components/HorizontalScroller"
 import {WorkoutCard} from "../components/WorkoutCard"
 import {WorkoutRow} from "../components/WorkoutRow"
 
@@ -152,7 +153,10 @@ export function LibraryPage() {
                                                 ? "Noch leer"
                                                 : `${collection.workouts.length} Programme`}
                                         </p>
-                                        <div className="row-scroller tight">
+                                        <HorizontalScroller
+                                            className="row-scroller tight"
+                                            label={collection.name}
+                                        >
                                             {collection.workouts.map((workout) => (
                                                 <WorkoutCard
                                                     key={workout.id}
@@ -161,7 +165,7 @@ export function LibraryPage() {
                                                     onClick={() => navigate(`/app/programm/${workout.id}`)}
                                                 />
                                             ))}
-                                        </div>
+                                        </HorizontalScroller>
                                     </article>
                                 ))}
                             </div>

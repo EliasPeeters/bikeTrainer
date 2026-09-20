@@ -376,9 +376,75 @@ select, input[type="search"], input[type="number"], input[type="text"]:not(.segm
 .row { margin-bottom: 2rem; }
 .row-header { display: flex; align-items: baseline; gap: 0.75rem; margin-bottom: 0.75rem; }
 .row-header h2 { margin: 0; }
-.row-scroller { display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 0.6rem; scroll-snap-type: x proximity; }
+.scroller { position: relative; }
+.row-scroller {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding-bottom: 0.6rem;
+    scroll-snap-type: x proximity;
+    scroll-behavior: smooth;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.row-scroller::-webkit-scrollbar { display: none; }
 .row-scroller.tight { gap: 0.6rem; }
 .row-scroller > * { scroll-snap-align: start; }
+
+.scroller-arrow {
+    position: absolute;
+    top: 0;
+    bottom: 0.6rem;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.6rem;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    color: var(--text);
+    cursor: pointer;
+    opacity: 0;
+    /* Unsichtbar heißt auch: klickt sich nicht vor die Karte darunter. */
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+}
+.scroller-arrow.left { left: 0; }
+.scroller-arrow.right { right: 0; }
+.scroller-arrow::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to right, var(--background) 25%, rgba(13, 15, 20, 0));
+    pointer-events: none;
+}
+.scroller-arrow.right::before { background: linear-gradient(to left, var(--background) 25%, rgba(13, 15, 20, 0)); }
+.scroller-arrow svg {
+    position: relative;
+    display: block;
+    border-radius: 999px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    padding: 0.3rem;
+    box-sizing: content-box;
+}
+.scroller:hover .scroller-arrow,
+.scroller-arrow:focus-visible { opacity: 1; pointer-events: auto; }
+.scroller-arrow:hover svg { border-color: rgba(78, 149, 248, 0.5); }
+.scroller-arrow[hidden] { display: none; }
+
+@media (hover: none) {
+    .scroller-arrow { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .row-scroller { scroll-behavior: auto; }
+    .scroller-arrow { transition: none; }
+}
 
 .workout-card {
     flex: 0 0 15rem;
@@ -406,7 +472,7 @@ select, input[type="search"], input[type="number"], input[type="text"]:not(.segm
 
 .collection-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: 1rem; }
 .collection header { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
-.collection .row-scroller { margin-top: 0.7rem; }
+.collection .scroller { margin-top: 0.7rem; }
 
 .search { display: flex; gap: 0.5rem; margin-bottom: 1.75rem; }
 .search input { flex: 1; }

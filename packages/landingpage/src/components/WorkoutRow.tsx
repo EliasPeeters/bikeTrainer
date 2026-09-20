@@ -1,4 +1,5 @@
 import type {WorkoutDTO} from "@wattwerk/shared"
+import {HorizontalScroller} from "./HorizontalScroller"
 import {WorkoutCard} from "./WorkoutCard"
 
 /**
@@ -28,11 +29,11 @@ export function WorkoutRow({
                 <h2>{title}</h2>
                 {subtitle !== undefined && <span className="muted">{subtitle}</span>}
             </header>
-            <div className="row-scroller">
+            <HorizontalScroller className="row-scroller" label={title}>
                 {workouts.map((workout) => (
                     <WorkoutCard key={workout.id} workout={workout} onClick={() => onSelect(workout)} />
                 ))}
-            </div>
+            </HorizontalScroller>
         </section>
     )
 }
