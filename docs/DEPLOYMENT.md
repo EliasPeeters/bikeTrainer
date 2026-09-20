@@ -172,12 +172,23 @@ Im Nginx Proxy Manager unter *Hosts → Proxy Hosts → Add Proxy Host*.
 | Forward Port | `8090` |
 | Block Common Exploits | an |
 | Cache Assets | **aus** |
-| Websockets Support | an |
 
-*Websockets Support* an, weil der Streamable-HTTP-Transport im Fehlerfall auf
-einen offen gehaltenen Datenstrom (SSE) zurückfällt; ohne die Einstellung
-schneidet der Proxy ihn ab. *Cache Assets* muss aus sein — eine
-zwischengespeicherte Antwort auf einen Werkzeugaufruf wäre schlicht falsch.
+*Cache Assets* muss aus sein — eine zwischengespeicherte Antwort auf einen
+Werkzeugaufruf wäre schlicht falsch.
+
+*Websockets Support* braucht es **nicht**: MCP über Streamable HTTP benutzt
+keine Websockets. Der Transport antwortet hier mit gewöhnlichem JSON
+(`enableJsonResponse`), und nur wenn er doch einmal einen offen gehaltenen
+Datenstrom (SSE) schickt, stört das Zwischenspeichern von nginx. Dagegen hilft
+im Reiter *Advanced*:
+
+```nginx
+proxy_buffering off;
+proxy_cache off;
+proxy_read_timeout 3600s;
+```
+
+Nötig ist das im Normalbetrieb nicht — schaden kann es auch nicht.
 
 Der Port ist der **innere** Port des Containers (8080 bzw. 8090), nicht der auf
 dem Host. Der Proxy Manager spricht die Container direkt über das gemeinsame

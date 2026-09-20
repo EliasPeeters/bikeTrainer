@@ -239,7 +239,9 @@ WATTWERK_API_URL=http://localhost:8088 yarn workspace @wattwerk/mcp serve
 ```
 
 Ausgeliefert wird er mit dem übrigen Stack, siehe
-[DEPLOYMENT.md](DEPLOYMENT.md) – dort steht auch der dritte Proxy Host.
+[DEPLOYMENT.md](DEPLOYMENT.md) – dort steht auch der dritte Proxy Host. Der
+DNS-Name ist bereits durch den Wildcard-Eintrag auf `*.wattwerk.eliaspeeters.de`
+abgedeckt; es braucht keinen eigenen Eintrag.
 
 ## Aufbau
 
