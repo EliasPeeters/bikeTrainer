@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "wattwerk": {
+      "type": "http",
+      "url": "https://mcp.wattwerk.eliaspeeters.de/mcp",
+      "headers": {
+        "Authorization": "Bearer ${WATTWERK_API_KEY}"
+      }
+    }
+  }
+}

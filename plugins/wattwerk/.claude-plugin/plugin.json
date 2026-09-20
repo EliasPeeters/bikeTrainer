@@ -1,0 +1,11 @@
+{
+  "name": "wattwerk",
+  "description": "Trainingsprogramme, Verlauf und Sammlungen aus Wattwerk – lesen, suchen und anlegen.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Elias Peeters"
+  },
+  "homepage": "https://wattwerk.eliaspeeters.de",
+  "repository": "https://github.com/EliasPeeters/bikeTrainer",
+  "keywords": ["cycling", "training", "indoor", "workout"]
+}

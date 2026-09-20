@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
     "test": "jest",
     "serve": "ts-node ./src/serve.ts",
-    "serve:dist": "node dist/serve.js"
+    "serve:dist": "node dist/serve.js",
+    "build:bundle": "node ./scripts/build-bundle.mjs"
   },
   "engines": {
     "node": ">=20.0.0"

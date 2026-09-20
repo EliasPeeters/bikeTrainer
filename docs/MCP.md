@@ -250,20 +250,73 @@ Ausgeliefert wird er mit dem übrigen Stack, siehe
 DNS-Name ist bereits durch den Wildcard-Eintrag auf `*.wattwerk.eliaspeeters.de`
 abgedeckt; es braucht keinen eigenen Eintrag.
 
+## Zum Weitergeben: Bundle und Plugin
+
+Der Weg über `.mcp.json` und gebaute Dateien ist ein Entwickler-Weg. Für
+jemanden, der Wattwerk nur benutzen will, gibt es zwei fertige Pakete.
+
+### Claude Desktop: das MCP-Bundle
+
+```bash
+yarn workspace @wattwerk/mcp build:bundle
+```
+
+Das erzeugt `packages/mcp/dist/wattwerk.mcpb` – ein Zip aus `manifest.json`,
+Symbol und dem Server. Der Nutzer **öffnet die Datei per Doppelklick**, Claude
+Desktop zeigt einen Installationsdialog mit zwei Feldern: Zugangsschlüssel
+(maskiert, sicher abgelegt) und Adresse der API. Kein Terminal, kein curl,
+keine Umgebungsvariablen.
+
+Node braucht er auch nicht: Claude für macOS und Windows bringt eine eigene
+Node-Laufzeit für Bundles mit.
+
+Anders als `yarn build` bindet der Bundle-Bau **alles** ein, auch das MCP-SDK
+und zod – im Bundle gibt es kein `node_modules`, an dem sich der Server
+bedienen könnte. Das Ergebnis sind rund 300 kB gepackt.
+
+Die Version in `bundle/manifest.json` muss der in `package.json` entsprechen;
+der Bau bricht sonst ab. Zwei Versionsnummern, die auseinanderlaufen, sind auf
+Dauer schlimmer als eine, die weh tut, wenn man sie vergisst.
+
+### Claude Code: das Plugin
+
+```bash
+claude plugin marketplace add EliasPeeters/bikeTrainer
+claude plugin install wattwerk@wattwerk
+export WATTWERK_API_KEY=wk_...
+```
+
+Das Plugin (`plugins/wattwerk`) verbindet sich über HTTPS mit dem
+MCP-Dienst – es baut nichts, klont nichts und braucht kein Node. Dazu bringt es
+eine Fertigkeit mit, die durch das Anlegen des Schlüssels führt, wenn ein
+Aufruf an fehlender Anmeldung scheitert.
+
+Die Adresse steht dort **fest**: in der `.mcp.json` eines Plugins löst Claude
+Code Variablen zwar in `headers` auf, aber nicht im `url`-Feld – geprüft mit
+Claude Code 2.0.76. Wer einen eigenen Stack betreibt, trägt den Server direkt
+ein statt über das Plugin.
+
+Eine Sache ist dabei zu wissen: `initialize` und `tools/list` fassen die
+Wattwerk-API nicht an. Ein falscher Schlüssel fällt deshalb erst beim ersten
+Werkzeugaufruf auf – `/mcp` zeigt bis dahin `connected`.
+
 ## Aufbau
 
 ```
-packages/mcp/src
-├── index.ts        Verdrahtung: Werkzeuge an einem MCP-Server anmelden
-├── stdio.ts        Einstieg für den stdio-Betrieb
-├── http.ts         Der HTTP-Dienst: Torwache, Token je Aufruf, CORS
-├── serve.ts        Einstieg für den HTTP-Betrieb
-├── config.ts       Der eine Ort, an dem die Umgebung gelesen wird
-├── api.ts          Die API als Methoden, samt Anmeldung und Wiederholung
-├── schemas.ts      Eingaben der Werkzeuge (zod) und Umwandlung ins Drahtformat
-├── format.ts       Antworten als lesbarer Text
-├── result.ts       Werkzeugergebnisse und Fehlerbehandlung
-└── tools/          Je eine Datei pro Themenbereich
+packages/mcp
+├── bundle/             manifest.json und Symbol für das .mcpb-Bundle
+├── scripts/            Bau des Bundles
+└── src
+    ├── index.ts        Verdrahtung: Werkzeuge an einem MCP-Server anmelden
+    ├── stdio.ts        Einstieg für den stdio-Betrieb
+    ├── http.ts         Der HTTP-Dienst: Torwache, Token je Aufruf, CORS
+    ├── serve.ts        Einstieg für den HTTP-Betrieb
+    ├── config.ts       Der eine Ort, an dem die Umgebung gelesen wird
+    ├── api.ts          Die API als Methoden, samt Anmeldung und Wiederholung
+    ├── schemas.ts      Eingaben der Werkzeuge (zod) und Umwandlung ins Drahtformat
+    ├── format.ts       Antworten als lesbarer Text
+    ├── result.ts       Werkzeugergebnisse und Fehlerbehandlung
+    └── tools/          Je eine Datei pro Themenbereich
 ```
 
 Einstieg und Bibliothek sind getrennt, und zwar zweimal aus demselben Grund:

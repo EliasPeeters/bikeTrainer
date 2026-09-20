@@ -81,7 +81,13 @@ Werkzeuge, eins je API-Route.
 
 Denselben Server gibt es auch über HTTP, als Container im Produktionsstack
 unter `https://mcp.wattwerk.eliaspeeters.de/mcp`. Dort bringt jeder Aufruf sein
-Token selbst mit, der Dienst speichert keines. Siehe [docs/MCP.md](docs/MCP.md).
+Token selbst mit, der Dienst speichert keines.
+
+**Zum Weitergeben** gibt es zwei fertige Pakete: ein Bundle für Claude Desktop
+(`yarn workspace @wattwerk/mcp build:bundle` → Doppelklick, Schlüssel in den
+Dialog, fertig – Node bringt Claude selbst mit) und ein Plugin für Claude Code
+(`claude plugin marketplace add EliasPeeters/bikeTrainer`). Siehe
+[docs/MCP.md](docs/MCP.md).
 
 ### Alles zusammen ausprobieren
 

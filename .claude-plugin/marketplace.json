@@ -1,0 +1,24 @@
+{
+  "name": "wattwerk",
+  "owner": {
+    "name": "Elias Peeters",
+    "url": "https://github.com/EliasPeeters"
+  },
+  "metadata": {
+    "description": "Wattwerk: strukturiertes Indoor-Radtraining",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "wattwerk",
+      "source": "./plugins/wattwerk",
+      "description": "Trainingsprogramme, Verlauf und Sammlungen aus Wattwerk – lesen, suchen und anlegen.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Elias Peeters"
+      },
+      "homepage": "https://wattwerk.eliaspeeters.de",
+      "keywords": ["cycling", "training", "indoor", "workout"]
+    }
+  ]
+}
