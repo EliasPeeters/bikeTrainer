@@ -113,6 +113,7 @@ Mehr dazu: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (Apps) ·
 [docs/BACKEND.md](docs/BACKEND.md) (API und Web-Portal) ·
 [docs/BLUETOOTH.md](docs/BLUETOOTH.md) ·
 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (VPS und Pipeline) ·
+[docs/RELEASE.md](docs/RELEASE.md) (App Store) ·
 [docs/ROADMAP.md](docs/ROADMAP.md)
 
 ## Was drin ist
