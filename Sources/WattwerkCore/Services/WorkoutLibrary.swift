@@ -67,6 +67,23 @@ public final class WorkoutLibrary {
         persist()
     }
 
+    /// Löst die eigenen Programme vom Konto.
+    ///
+    /// Nach einer Kontolöschung bleiben sie auf dem Gerät - sie gehören dem
+    /// Fahrer, nicht dem Konto. Ohne das Zurücksetzen von `syncedAt` würden sie
+    /// bei einem neuen Konto für "schon abgeglichen" gehalten und nie hochgeladen.
+    public func detachFromAccount() {
+        userWorkouts = userWorkouts.map { workout in
+            var copy = workout
+            copy.ownerUserID = nil
+            copy.ownerName = nil
+            copy.syncedAt = nil
+            copy.visibility = .private
+            return copy
+        }
+        persist()
+    }
+
     public func delete(id: UUID) {
         userWorkouts.removeAll { $0.id == id }
         persist()

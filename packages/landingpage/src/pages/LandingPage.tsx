@@ -1,4 +1,5 @@
 import {useState} from "react"
+import {Link} from "react-router-dom"
 import {useAuth} from "../api/auth"
 import {ApiError} from "../api/client"
 
@@ -71,7 +72,9 @@ export function LandingPage() {
 
             <footer className="bottom">
                 <span>Wattwerk – strukturiertes Indoor-Radtraining</span>
-                <span>Noch in Entwicklung.</span>
+                <span>
+                    <Link to="/datenschutz">Datenschutz</Link>
+                </span>
             </footer>
         </div>
     )

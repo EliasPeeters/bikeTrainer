@@ -47,6 +47,17 @@ public final class SessionStore {
         persist()
     }
 
+    /// Nach einer Kontolöschung: alles gilt wieder als nicht hochgeladen,
+    /// damit es bei einem neuen Konto mitgeht.
+    public func detachFromAccount() {
+        sessions = sessions.map { session in
+            var copy = session
+            copy.uploadedAt = nil
+            return copy
+        }
+        persist()
+    }
+
     public func delete(id: UUID) {
         sessions.removeAll { $0.id == id }
         persist()

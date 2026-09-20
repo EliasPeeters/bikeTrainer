@@ -1,4 +1,5 @@
 import type {Express} from "express"
+import {randomUUID} from "node:crypto"
 import request from "supertest"
 import {DBUser} from "../../src/db/DBUser"
 import {closeDatabase, setupTestServer, uniqueEmail} from "./helpers"
@@ -193,5 +194,91 @@ describe("Sonstiges", () => {
         const response = await request(app).get("/gibtesnicht")
         expect(response.status).toBe(404)
         expect(response.body.error).toBe("NOT_FOUND")
+    })
+})
+
+describe("Konto löschen", () => {
+    it("verlangt das Passwort", async () => {
+        const registered = await request(app)
+            .post("/auth/register")
+            .send({email: uniqueEmail(), password: "geheim12"})
+            .expect(201)
+        const token = registered.body.accessToken
+
+        // Ein abgegriffenes Zugangstoken allein darf nicht reichen.
+        await request(app).post("/me/delete").set("Authorization", `Bearer ${token}`).send({}).expect(400)
+
+        const wrong = await request(app)
+            .post("/me/delete")
+            .set("Authorization", `Bearer ${token}`)
+            .send({password: "falsch123"})
+        expect(wrong.status).toBe(401)
+        expect(wrong.body.error).toBe("INVALID_CREDENTIALS")
+
+        // Konto ist noch da.
+        await request(app).get("/me").set("Authorization", `Bearer ${token}`).expect(200)
+    })
+
+    it("löscht das Konto samt allem, was daran hängt", async () => {
+        const email = uniqueEmail()
+        const registered = await request(app)
+            .post("/auth/register")
+            .send({email, password: "geheim12"})
+            .expect(201)
+        const token = registered.body.accessToken
+
+        const workout = await request(app)
+            .post("/workouts")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                name: "Geht mit",
+                visibility: "public",
+                segments: [{durationSeconds: 600, target: {type: "percentFTP", value: 0.7}}],
+            })
+            .expect(201)
+
+        await request(app)
+            .post("/collections")
+            .set("Authorization", `Bearer ${token}`)
+            .send({name: "Geht auch mit", workoutIDs: [workout.body.id]})
+            .expect(201)
+
+        await request(app)
+            .post("/sessions")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                clientID: randomUUID(),
+                workoutName: "Geht ebenfalls mit",
+                startedAt: new Date().toISOString(),
+                durationSeconds: 1800,
+                completed: true,
+                ftp: 250,
+                averagePower: 200,
+                maxPower: 300,
+                normalizedPower: 210,
+                intensityFactor: 0.84,
+                trainingStressScore: 42,
+                kilojoules: 360,
+            })
+            .expect(201)
+
+        await request(app)
+            .post("/me/delete")
+            .set("Authorization", `Bearer ${token}`)
+            .send({password: "geheim12"})
+            .expect(200)
+
+        // Das Token zeigt ins Leere.
+        await request(app).get("/me").set("Authorization", `Bearer ${token}`).expect(401)
+
+        // Anmelden geht nicht mehr.
+        const login = await request(app).post("/auth/login").send({email, password: "geheim12"})
+        expect(login.status).toBe(401)
+
+        // Auch das öffentlich geteilte Programm ist weg - es gehörte dem Konto.
+        await request(app).get(`/workouts/${workout.body.id}`).expect(404)
+
+        // Und die Adresse ist wieder frei.
+        await request(app).post("/auth/register").send({email, password: "geheim12"}).expect(201)
     })
 })

@@ -33,7 +33,7 @@ export function createServer(): Server {
 
     new HealthService().configure(server)
     new AuthService(tokenService, passwordService).configure(server)
-    new ProfileService().configure(server)
+    new ProfileService(passwordService).configure(server)
     new TrainingSessionService().configure(server)
     new WorkoutService().configure(server)
     new CollectionService().configure(server)

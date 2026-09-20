@@ -105,6 +105,17 @@ public actor APIClient {
         )
     }
 
+    /// Löscht das Konto endgültig. Das Passwort muss mit - ein abgegriffenes
+    /// Zugangstoken soll dafür nicht reichen.
+    public func deleteAccount(password: String) async throws {
+        struct Body: Encodable {
+            let password: String
+        }
+        struct Ignored: Decodable {}
+        let _: Ignored = try await send("/me/delete", method: "POST", body: Body(password: password))
+        applyTokens(nil)
+    }
+
     // MARK: Programme
 
     public func myWorkouts() async throws -> [WorkoutPayload] {

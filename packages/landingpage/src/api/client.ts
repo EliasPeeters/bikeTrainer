@@ -195,6 +195,9 @@ export const api = {
     updateProfile(body: UpdateProfileRequest) {
         return call<UserResponse>("/me", {method: "PUT", body})
     },
+    deleteAccount(password: string) {
+        return call<{deleted: boolean}>("/me/delete", {method: "POST", body: {password}})
+    },
     sessions(limit = 50) {
         return call<TrainingSessionListResponse>("/sessions", {query: {limit}})
     },

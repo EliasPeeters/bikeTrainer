@@ -27,6 +27,8 @@ ob die Werte plausibel sind. Alles Weitere hängt davon ab.
   Anfang tragbar, auf Dauer gehört so etwas in den Keychain.
 * **Passwort vergessen.** Fehlt komplett, und ohne Mailversand geht es auch
   nicht.
+* **Impressum.** Die Datenschutzseite steht, ein Impressum nach DDG fehlt - und
+  in der Datenschutzerklärung fehlen Anschrift, Kontakt und Hoster.
 * **Sammlungen in der App bearbeiten.** Sie werden dort angezeigt und lassen
   sich fahren, angelegt und gefüllt werden sie bisher nur im Web-Portal.
 * **Grabsteine für gelöschte Programme.** Der Abgleich löst den Normalfall über

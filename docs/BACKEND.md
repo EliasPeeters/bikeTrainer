@@ -52,6 +52,7 @@ statt im Handler auf `undefined` zu prüfen.
 | POST | `/auth/refresh` | Token im Körper | Neue Tokens |
 | GET | `/me` | ja | Fahrerprofil lesen |
 | PUT | `/me` | ja | FTP, Puls, Gewicht, Name ändern |
+| POST | `/me/delete` | ja | Konto endgültig löschen (Passwort im Körper) |
 | POST | `/sessions` | ja | Gefahrene Einheit hochladen |
 | GET | `/sessions` | ja | Verlauf plus Wochenbelastung |
 | DELETE | `/sessions/:id` | ja | Einheit löschen |
@@ -135,6 +136,14 @@ Weitere Entscheidungen, die im Code kommentiert sind:
   Mit mehreren Instanzen gilt das Kontingent je Prozess – eine Bremse, keine Mauer.
 * **Passwörter über 72 Byte werden abgelehnt**, statt sie von bcrypt
   stillschweigend abschneiden zu lassen.
+* **Löschen verlangt das Passwort erneut.** Ein abgegriffenes Zugangstoken soll
+  nicht reichen, um ein Konto samt aller Einheiten zu entfernen. Es ist ein POST
+  und kein DELETE, weil ein Körper mitgeht und den nicht jeder Proxy durchreicht.
+  Einheiten, Programme und Sammlungen hängen per Fremdschlüssel mit
+  `ON DELETE CASCADE` am Konto - auch öffentlich geteilte Programme gehen mit,
+  denn "gelöscht" soll gelöscht heißen. Ohne das gibt es keine Freigabe im App
+  Store: Richtlinie 5.1.1(v) verlangt, dass ein in der App angelegtes Konto dort
+  auch wieder wegkann.
 
 **Keine Mailbestätigung.** Es gibt keinen Mailversand, und Spalten, die nie
 einen Wert bekommen, laden nur dazu ein, sich auf sie zu verlassen – die

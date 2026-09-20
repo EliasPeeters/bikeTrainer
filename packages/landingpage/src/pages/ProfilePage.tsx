@@ -115,6 +115,88 @@ export function ProfilePage() {
                     </span>
                 </div>
             </form>
+
+            <DeleteAccountCard />
         </>
+    )
+}
+
+/**
+ * Konto löschen.
+ *
+ * Nicht versteckt und nicht nur per Mail: Richtlinie 5.1.1(v) des App Store
+ * verlangt, dass ein in der App angelegtes Konto dort auch wieder wegkann.
+ * Dieselbe Erwartung gilt für das Portal.
+ */
+function DeleteAccountCard() {
+    const {logout} = useAuth()
+    const [open, setOpen] = useState(false)
+    const [password, setPassword] = useState("")
+    const [error, setError] = useState<string | null>(null)
+    const [busy, setBusy] = useState(false)
+
+    async function submit(event: React.FormEvent) {
+        event.preventDefault()
+        setBusy(true)
+        setError(null)
+        try {
+            await api.deleteAccount(password)
+            logout()
+        } catch (caught) {
+            setError(caught instanceof ApiError ? caught.message : "Das hat nicht geklappt.")
+            setBusy(false)
+        }
+    }
+
+    return (
+        <section className="card block danger-zone">
+            <h2>Konto löschen</h2>
+            <p className="muted">
+                Löscht dein Konto endgültig, dazu alle Programme, Ordner und gefahrenen Einheiten – auch
+                die, die du öffentlich geteilt hast. Das lässt sich nicht rückgängig machen. Die App auf
+                deinen Geräten funktioniert weiter, dann ohne Abgleich.
+            </p>
+
+            {!open ? (
+                <button type="button" className="ghost danger" onClick={() => setOpen(true)}>
+                    Konto löschen …
+                </button>
+            ) : (
+                <form onSubmit={submit}>
+                    {error !== null && (
+                        <div className="message error" role="alert">
+                            {error}
+                        </div>
+                    )}
+                    <label htmlFor="delete-password">Zur Bestätigung dein Passwort</label>
+                    <input
+                        id="delete-password"
+                        type="password"
+                        required
+                        autoComplete="current-password"
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                        disabled={busy}
+                    />
+                    <div className="actions">
+                        <button type="submit" className="ghost danger" disabled={busy || password.length === 0}>
+                            {busy ? "Wird gelöscht \u2026" : "Endgültig löschen"}
+                        </button>
+                        <button
+                            type="button"
+                            className="ghost"
+                            onClick={() => {
+                                setOpen(false)
+                                setPassword("")
+                                setError(null)
+                            }}
+                            disabled={busy}
+                        >
+                            Abbrechen
+                        </button>
+                    </div>
+                </form>
+            )}
+        </section>
     )
 }

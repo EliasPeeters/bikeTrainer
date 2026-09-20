@@ -12,6 +12,9 @@ struct AccountView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var name = ""
+    @State private var showsDeleteConfirmation = false
+    @State private var deletePassword = ""
+    @State private var deleteError: String?
     #if DEBUG
     @State private var serverURL = ""
     #endif
@@ -28,6 +31,7 @@ struct AccountView: View {
                 if model.account.isSignedIn {
                     signedInCard
                     syncCard
+                    deleteCard
                 } else {
                     benefitsCard
                     formCard
@@ -123,6 +127,73 @@ struct AccountView: View {
                 Label(message, systemImage: "exclamationmark.triangle.fill")
                     .font(.system(size: 13 * Theme.scale))
                     .foregroundStyle(Theme.negative)
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardBackground()
+    }
+
+    /// Konto löschen.
+    ///
+    /// Sichtbar und ohne Umweg über eine Webseite: Richtlinie 5.1.1(v) des App
+    /// Store verlangt, dass ein in der App angelegtes Konto dort auch wieder
+    /// wegkann. Das Passwort muss mit, damit ein fremdes Gerät mit gültigem
+    /// Token nicht genügt.
+    private var deleteCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Konto löschen")
+                .font(.system(size: 18 * Theme.scale, weight: .semibold))
+                .foregroundStyle(Theme.negative)
+
+            Text("Löscht dein Konto endgültig, dazu alle Einheiten, Programme und Ordner auf dem Server - auch öffentlich geteilte. Programme auf diesem Gerät bleiben erhalten, dann ohne Abgleich.")
+                .font(.system(size: 13 * Theme.scale))
+                .foregroundStyle(.secondary)
+
+            if showsDeleteConfirmation {
+                labelled("Zur Bestätigung dein Passwort") {
+                    SecureField("Passwort", text: $deletePassword)
+                }
+
+                if let deleteError {
+                    Label(deleteError, systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 13 * Theme.scale))
+                        .foregroundStyle(Theme.negative)
+                }
+
+                HStack(spacing: 12) {
+                    Button(role: .destructive) {
+                        Task {
+                            deleteError = nil
+                            let deleted = await model.account.deleteAccount(password: deletePassword)
+                            if deleted {
+                                model.sync.detachFromAccount()
+                                deletePassword = ""
+                                showsDeleteConfirmation = false
+                            } else {
+                                deleteError = model.account.lastError ?? "Das hat nicht geklappt."
+                            }
+                        }
+                    } label: {
+                        Label("Endgültig löschen", systemImage: "trash")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(model.account.isBusy || deletePassword.isEmpty)
+
+                    Button("Abbrechen") {
+                        showsDeleteConfirmation = false
+                        deletePassword = ""
+                        deleteError = nil
+                    }
+                    .buttonStyle(.bordered)
+                }
+            } else {
+                Button(role: .destructive) {
+                    showsDeleteConfirmation = true
+                } label: {
+                    Label("Konto löschen …", systemImage: "trash")
+                }
+                .buttonStyle(.bordered)
             }
         }
         .padding(18)

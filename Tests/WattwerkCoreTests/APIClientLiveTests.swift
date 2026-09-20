@@ -164,6 +164,35 @@ struct APIClientLiveTests {
         }
     }
 
+    @Test("Konto löschen nimmt alles mit")
+    func deleteAccount() async throws {
+        let client = self.client
+        let email = freshEmail()
+        _ = try await client.register(email: email, password: "geheim12", name: "Weg")
+
+        _ = try await client.saveWorkout(
+            WorkoutPayload(Workout(name: "Verschwindet", segments: [.steady(600, percentFTP: 0.7)]))
+        )
+        #expect(try await client.myWorkouts().count == 1)
+
+        // Ohne richtiges Passwort passiert nichts.
+        await #expect(throws: APIError.self) {
+            try await client.deleteAccount(password: "falsch123")
+        }
+        #expect(try await client.myWorkouts().count == 1)
+
+        try await client.deleteAccount(password: "geheim12")
+
+        // Danach trägt das Token nicht mehr.
+        await #expect(throws: APIError.self) {
+            _ = try await client.myWorkouts()
+        }
+        // Und die Adresse ist wieder frei.
+        let again = try await client.register(email: email, password: "anderes123", name: "Neu")
+        #expect(again.user.email == email)
+        #expect(try await client.myWorkouts().isEmpty)
+    }
+
     @Test("Ohne Anmeldung bleiben geschützte Routen zu")
     func unauthenticatedIsRejected() async throws {
         let client = self.client

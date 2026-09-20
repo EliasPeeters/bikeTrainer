@@ -48,6 +48,14 @@ export interface UserResponse {
     createdAt: string
 }
 
+/**
+ * Das Passwort muss noch einmal mit - ein abgegriffenes Zugangstoken soll
+ * nicht reichen, um ein Konto samt aller Einheiten zu loeschen.
+ */
+export interface DeleteAccountRequest {
+    password: string
+}
+
 export interface UpdateProfileRequest {
     name?: string
     ftp?: number

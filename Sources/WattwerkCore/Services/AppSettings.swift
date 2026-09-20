@@ -100,6 +100,11 @@ public final class SettingsStore {
         return changed > synced
     }
 
+    /// Das Profil gilt wieder als nur lokal vorhanden.
+    public func markProfileDetached() {
+        settings.profileSyncedAt = nil
+    }
+
     public func markProfileSynced(at date: Date = Date()) {
         settings.profileSyncedAt = date
     }

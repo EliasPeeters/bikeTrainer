@@ -96,6 +96,23 @@ public final class AccountStore {
         }
     }
 
+    /// `true`, wenn das Konto wirklich weg ist.
+    public func deleteAccount(password: String) async -> Bool {
+        var succeeded = false
+        await perform {
+            try await self.client.deleteAccount(password: password)
+            succeeded = true
+        }
+        if succeeded {
+            // Nicht `logout()`: die Tokens hat der Client schon verworfen, und
+            // hier soll nur noch der lokale Zustand nachziehen.
+            user = nil
+            storage.set(nil, forKey: Self.userKey)
+            Self.saveTokens(nil, to: storage)
+        }
+        return succeeded
+    }
+
     public func clearError() {
         lastError = nil
     }

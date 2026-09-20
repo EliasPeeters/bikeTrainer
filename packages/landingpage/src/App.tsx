@@ -5,6 +5,7 @@ import {DashboardPage} from "./pages/DashboardPage"
 import {HistoryPage} from "./pages/HistoryPage"
 import {LandingPage} from "./pages/LandingPage"
 import {LibraryPage} from "./pages/LibraryPage"
+import {PrivacyPage} from "./pages/PrivacyPage"
 import {ProfilePage} from "./pages/ProfilePage"
 import {WorkoutDetailPage} from "./pages/WorkoutDetailPage"
 import {WorkoutEditorPage} from "./pages/WorkoutEditorPage"
@@ -25,6 +26,9 @@ export function App() {
     return (
         <Routes>
             <Route path="/" element={user === null ? <LandingPage /> : <Navigate to="/app" replace />} />
+            {/* Ohne Anmeldung erreichbar - App Store Connect ruft die Adresse
+                auf, und zwar ohne Konto. */}
+            <Route path="/datenschutz" element={<PrivacyPage />} />
             <Route path="/app" element={user === null ? <Navigate to="/" replace /> : <PortalLayout />}>
                 <Route index element={<DashboardPage />} />
                 <Route path="bibliothek" element={<LibraryPage />} />

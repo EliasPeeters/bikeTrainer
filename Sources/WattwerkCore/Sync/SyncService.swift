@@ -59,6 +59,16 @@ public final class SyncService {
     }
 
     /// Nur die Reihen neu holen - nach einer Fahrt oder beim Öffnen der Bibliothek.
+    /// Nach dem Löschen des Kontos: lokale Daten bleiben, verlieren aber ihre
+    /// Bindung an den Server.
+    public func detachFromAccount() {
+        library.detachFromAccount()
+        sessions.detachFromAccount()
+        settings.markProfileDetached()
+        discovery = nil
+        status = .idle
+    }
+
     public func refreshDiscovery() async {
         guard account.isSignedIn else {
             discovery = nil

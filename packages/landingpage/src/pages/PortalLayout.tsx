@@ -45,6 +45,11 @@ export function PortalLayout() {
             <main className="page portal-main">
                 <Outlet />
             </main>
+
+            <footer className="page bottom">
+                <span>Wattwerk</span>
+                <NavLink to="/datenschutz">Datenschutz</NavLink>
+            </footer>
         </div>
     )
 }
