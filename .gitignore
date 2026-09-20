@@ -14,8 +14,13 @@ xcuserdata/
 # Swift Package Manager
 .build/
 .swiftpm/
-Packages/
 Package.resolved
+# Hier stand einmal "Packages/" aus der SwiftPM-Vorlage. Auf macOS ist das
+# Dateisystem unabhängig von Groß- und Kleinschreibung, git setzt deshalb
+# core.ignorecase=true - und damit hat die Zeile auch das TypeScript-Monorepo
+# unter packages/ verschluckt. Ignorierte Dateien tauchen in `git status` nicht
+# als unversioniert auf, also fiel es erst in der Pipeline auf. Nicht wieder
+# eintragen; für SwiftPM reicht .build/.
 
 # macOS
 .DS_Store
