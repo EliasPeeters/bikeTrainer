@@ -54,43 +54,6 @@ header.top {
     object-fit: contain;
 }
 
-.hero {
-    display: grid;
-    grid-template-columns: 1.15fr 1fr;
-    gap: 3.5rem;
-    align-items: start;
-    padding: 3rem 0 4.5rem;
-}
-
-.hero h1 {
-    font-size: clamp(2.2rem, 5vw, 3.4rem);
-    line-height: 1.1;
-    letter-spacing: -0.03em;
-    margin: 0 0 1.2rem;
-}
-
-.hero .lead {
-    font-size: 1.15rem;
-    color: var(--text-muted);
-    margin: 0 0 2rem;
-}
-
-.platforms {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-.platforms li {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 0.3rem 0.85rem;
-}
 
 .card {
     background: var(--surface);
@@ -192,30 +155,6 @@ button.primary:disabled {
     color: #a7e8c0;
 }
 
-.features {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-    gap: 1.25rem;
-    padding-bottom: 4rem;
-}
-
-.feature h3 {
-    font-size: 1.02rem;
-    margin: 0 0 0.4rem;
-}
-
-.feature p {
-    color: var(--text-muted);
-    font-size: 0.92rem;
-    margin: 0;
-}
-
-.feature .icon {
-    font-size: 1.4rem;
-    margin-bottom: 0.7rem;
-    display: block;
-}
-
 footer.bottom {
     border-top: 1px solid var(--border);
     padding: 2rem 0 3rem;
@@ -225,14 +164,6 @@ footer.bottom {
     justify-content: space-between;
     gap: 1rem;
     flex-wrap: wrap;
-}
-
-@media (max-width: 860px) {
-    .hero {
-        grid-template-columns: 1fr;
-        gap: 2.5rem;
-        padding: 1.5rem 0 3rem;
-    }
 }
 
 /* ---------- Gemeinsame Bausteine ---------- */
@@ -538,4 +469,284 @@ select, input[type="search"], input[type="number"], input[type="text"]:not(.segm
     border-radius: 0 9px 9px 0;
     color: var(--text);
     font-size: 0.9rem;
+}
+
+/* ---------- Startseite ---------- */
+
+html { scroll-behavior: smooth; }
+
+/* Ohne das zeichnet der Browser die besuchte Verweisfarbe - auf dunklem Grund
+   ein bräunliches Lila, das nach Versehen aussieht. */
+footer.bottom a { color: var(--text-muted); }
+footer.bottom a:hover { color: var(--text); }
+
+/* Die Menüleiste bleibt oben stehen - der Weg zur Anmeldung ist damit von
+   jeder Stelle der Seite aus einer statt zweier Handgriffe. */
+.menubar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: rgba(13, 15, 20, 0.82);
+    backdrop-filter: saturate(160%) blur(14px);
+    -webkit-backdrop-filter: saturate(160%) blur(14px);
+    border-bottom: 1px solid var(--border);
+}
+
+.menubar-inner {
+    max-width: 68rem;
+    margin: 0 auto;
+    padding: 0.85rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.menubar .logo {
+    color: var(--text);
+    text-decoration: none;
+    margin-right: auto;
+}
+
+.menu-links {
+    display: flex;
+    gap: 1.4rem;
+    font-size: 0.92rem;
+}
+
+.menu-links a {
+    color: var(--text-muted);
+    text-decoration: none;
+}
+
+.menu-links a:hover { color: var(--text); }
+
+.menu-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.hero {
+    padding: 4.5rem 0 2.5rem;
+    max-width: 44rem;
+}
+
+.eyebrow {
+    margin: 0 0 0.9rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--accent);
+}
+
+.hero h1 {
+    font-size: clamp(2.2rem, 5.4vw, 3.5rem);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    margin: 0 0 1.2rem;
+}
+
+.hero .lead {
+    font-size: 1.15rem;
+    color: var(--text-muted);
+    margin: 0 0 2rem;
+}
+
+.hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+    margin-bottom: 2rem;
+}
+
+.hero-actions .primary,
+.hero-actions .ghost { padding: 0.7rem 1.3rem; font-size: 0.95rem; }
+
+.platforms {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.platforms li {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.3rem 0.85rem;
+}
+
+/* Aufnahmen der App. Der Rahmen ist derselbe wie in den Store-Grafiken, damit
+   Seite und Eintrag zusammengehören. */
+.hero-shot,
+.wide-shot,
+.show-shot {
+    margin: 0;
+}
+
+.hero-shot img,
+.wide-shot img,
+.show-shot img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55);
+    background: var(--surface);
+}
+
+.hero-shot { margin-bottom: 4rem; }
+
+.wide-shot figcaption,
+.show-shot figcaption {
+    margin-top: 0.65rem;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: 1.25rem;
+    padding: 0 0 4.5rem;
+}
+
+.stats div {
+    border-left: 2px solid var(--accent);
+    padding-left: 1rem;
+}
+
+.stats strong {
+    display: block;
+    font-size: 1.5rem;
+    letter-spacing: -0.02em;
+}
+
+.stats span {
+    font-size: 0.88rem;
+    color: var(--text-muted);
+}
+
+.section-title {
+    font-size: clamp(1.6rem, 3.4vw, 2.2rem);
+    letter-spacing: -0.025em;
+    margin: 0 0 0.75rem;
+}
+
+.section-lead {
+    font-size: 1.05rem;
+    max-width: 42rem;
+    margin: 0 0 2.5rem;
+}
+
+.showcase { padding-bottom: 2rem; }
+.showcase .section-title { margin-bottom: 3rem; }
+
+.show-row {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 3rem;
+    align-items: center;
+    padding: 2.5rem 0;
+}
+
+/* Jede zweite Reihe andersherum: das Auge wandert im Zickzack nach unten
+   statt in einer Spalte geradeaus. */
+.show-row.reversed .show-shot { order: 2; }
+
+.show-text h3 {
+    font-size: 1.5rem;
+    letter-spacing: -0.02em;
+    margin: 0 0 0.75rem;
+}
+
+.show-text p { margin: 0 0 1.1rem; }
+
+.ticks {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 0.5rem;
+}
+
+.ticks li {
+    position: relative;
+    padding-left: 1.6rem;
+    font-size: 0.93rem;
+    color: var(--text-muted);
+}
+
+.ticks li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.5em;
+    width: 0.55rem;
+    height: 0.3rem;
+    border-left: 2px solid var(--positive);
+    border-bottom: 2px solid var(--positive);
+    transform: rotate(-45deg);
+}
+
+.platform-section { padding: 3.5rem 0 1rem; }
+
+.platform-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 3rem;
+}
+
+.platform-grid h3 { font-size: 1.05rem; margin: 0 0 0.35rem; }
+.platform-grid p { margin: 0; font-size: 0.92rem; }
+
+.signup {
+    display: grid;
+    grid-template-columns: 1fr 24rem;
+    gap: 3rem;
+    align-items: start;
+    padding: 5rem 0 4rem;
+    scroll-margin-top: 5rem;
+}
+
+.signup h2 {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    letter-spacing: -0.025em;
+    margin: 0 0 0.75rem;
+}
+
+.signup-text p { margin: 0 0 1.25rem; font-size: 1rem; }
+
+.auth-card { padding: 1.5rem; }
+button.primary.wide { width: 100%; padding: 0.75rem; }
+
+@media (max-width: 860px) {
+    .menu-links { display: none; }
+    .menubar-inner { gap: 0.75rem; }
+    .hero { padding: 2.5rem 0 2rem; }
+    .show-row,
+    .signup {
+        grid-template-columns: 1fr;
+        gap: 1.75rem;
+        padding: 2rem 0;
+    }
+    .show-row.reversed .show-shot { order: 0; }
+    .signup { padding: 3rem 0; }
+}
+
+/* Der Weg zur Anmeldung bleibt auch auf dem Telefon in der Leiste stehen -
+   er wird nur schmaler. */
+@media (max-width: 520px) {
+    .menubar-inner { padding: 0.7rem 1rem; }
+    .menubar .logo { font-size: 1rem; }
+    .menubar .logo .badge { display: none; }
+    .menu-actions { gap: 0.4rem; }
+    .menu-actions .ghost,
+    .menu-actions .primary { padding: 0.45rem 0.7rem; font-size: 0.85rem; }
 }

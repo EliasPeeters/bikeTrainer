@@ -1,0 +1,37 @@
+diff --git a/Sources/WattwerkUI/Screens/LibraryView.swift b/Sources/WattwerkUI/Screens/LibraryView.swift
+index 9ee30b5..69c2364 100644
+--- a/Sources/WattwerkUI/Screens/LibraryView.swift
++++ b/Sources/WattwerkUI/Screens/LibraryView.swift
+@@ -37,6 +37,15 @@ struct LibraryView: View {
+                 WorkoutDetailView(model: model, workout: workout)
+             }
+             .task {
++                if let name = ScreenshotDriver.detailWorkoutName,
++                   let workout = model.library.allWorkouts.first(where: { $0.name == name }) {
++                    path = [workout]
++                }
++                #if !os(tvOS)
++                if ScreenshotDriver.scene == "editor" {
++                    editedWorkout = ScreenshotDriver.editorWorkout
++                }
++                #endif
+                 // Beim Öffnen die Reihen auffrischen - eine Einheit auf einem
+                 // anderen Gerät soll hier ankommen, ohne die App neu zu starten.
+                 await model.sync.refreshDiscovery()
+diff --git a/Sources/WattwerkUI/Screens/RootView.swift b/Sources/WattwerkUI/Screens/RootView.swift
+index 046c5d5..6d934e5 100644
+--- a/Sources/WattwerkUI/Screens/RootView.swift
++++ b/Sources/WattwerkUI/Screens/RootView.swift
+@@ -28,6 +28,12 @@ public struct RootView: View {
+         .preferredColorScheme(.dark)
+         .tint(Theme.accent)
+         .environment(model)
++        .task {
++            ScreenshotDriver.run(model: model)
++            #if os(macOS)
++            ScreenshotDriver.placeWindowIfAsked()
++            #endif
++        }
+     }
+ 
+     @ViewBuilder
