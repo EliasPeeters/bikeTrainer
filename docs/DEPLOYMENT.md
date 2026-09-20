@@ -1,8 +1,8 @@
 # Auf den VPS bringen
 
 Eine GitHub-Action baut und startet den ganzen Stack: Datenbank, Migrationen,
-API und Landingpage. Ausgelöst wird sie von Hand — wann etwas live geht, ist
-eine Entscheidung und kein Nebeneffekt vom Committen.
+API, Landingpage und MCP-Server. Ausgelöst wird sie von Hand — wann etwas live
+geht, ist eine Entscheidung und kein Nebeneffekt vom Committen.
 
 Adressen am Ende:
 
@@ -10,6 +10,7 @@ Adressen am Ende:
 |---|---|
 | `https://wattwerk.eliaspeeters.de` | Landingpage und Web-Portal |
 | `https://api.wattwerk.eliaspeeters.de` | API, für die Mac- und Apple-TV-App |
+| `https://mcp.wattwerk.eliaspeeters.de` | MCP-Server, für Sprachmodelle ([MCP.md](MCP.md)) |
 
 Das Web-Portal ruft die API **nicht** über die zweite Adresse auf. Es fragt
 `/api` auf seiner eigenen Adresse, und der nginx im Landingpage-Container
@@ -108,10 +109,20 @@ dessen kurze Laufzeit wäre wirkungslos.
 | `PROXY_NETWORK` | `wattwerk-proxy` |
 | `API_PORT` | `8088` |
 | `LANDINGPAGE_PORT` | `8089` |
+| `MCP_PORT` | `8090` |
+| `MCP_ALLOWED_ORIGINS` | leer |
 
-`API_PORT` und `LANDINGPAGE_PORT` binden **nur auf 127.0.0.1** — von außen ist
-darüber nichts erreichbar. Sie sind zum Nachsehen auf dem Server da
+`API_PORT`, `LANDINGPAGE_PORT` und `MCP_PORT` binden **nur auf 127.0.0.1** — von
+außen ist darüber nichts erreichbar. Sie sind zum Nachsehen auf dem Server da
 (`curl http://127.0.0.1:8088/health`). Die Datenbank bekommt gar keinen Port.
+
+`MCP_ALLOWED_ORIGINS` bleibt normalerweise leer: ein MCP-Client ist kein
+Browser und schickt gar keinen Origin. Ein Eintrag ist nur nötig, wenn eine
+Webseite den Dienst direkt aufruft — und wäre sonst ein Angebot an fremde
+Seiten, mit dem Token des Nutzers zu arbeiten.
+
+Für den MCP-Server gibt es **kein Secret**: er hält keine Zugangsdaten. Jeder
+Aufruf bringt sein Token im `Authorization`-Header mit.
 
 ### Den Serverschlüssel anheften (empfohlen)
 
@@ -125,7 +136,7 @@ ssh-keyscan -H <vps> 2>/dev/null
 
 Die Ausgabe als Secret `VPS_KNOWN_HOSTS` hinterlegen.
 
-## 4. Die beiden Proxy Hosts anlegen
+## 4. Die drei Proxy Hosts anlegen
 
 Im Nginx Proxy Manager unter *Hosts → Proxy Hosts → Add Proxy Host*.
 
@@ -151,12 +162,32 @@ Im Nginx Proxy Manager unter *Hosts → Proxy Hosts → Add Proxy Host*.
 | Block Common Exploits | an |
 | Cache Assets | **aus** |
 
-Der Port ist der **innere** Port des Containers (8080), nicht der auf dem Host.
-Der Proxy Manager spricht die Container direkt über das gemeinsame Netz an.
+**MCP-Server**
 
-Im Reiter *SSL* bei beiden: *Request a new SSL Certificate*, dazu *Force SSL*
-und *HTTP/2 Support*. Die DNS-Einträge für beide Namen müssen vorher auf den
-VPS zeigen, sonst schlägt die Ausstellung fehl.
+| Feld | Wert |
+|---|---|
+| Domain Names | `mcp.wattwerk.eliaspeeters.de` |
+| Scheme | `http` |
+| Forward Hostname / IP | `wattwerk-mcp` |
+| Forward Port | `8090` |
+| Block Common Exploits | an |
+| Cache Assets | **aus** |
+| Websockets Support | an |
+
+*Websockets Support* an, weil der Streamable-HTTP-Transport im Fehlerfall auf
+einen offen gehaltenen Datenstrom (SSE) zurückfällt; ohne die Einstellung
+schneidet der Proxy ihn ab. *Cache Assets* muss aus sein — eine
+zwischengespeicherte Antwort auf einen Werkzeugaufruf wäre schlicht falsch.
+
+Der Port ist der **innere** Port des Containers (8080 bzw. 8090), nicht der auf
+dem Host. Der Proxy Manager spricht die Container direkt über das gemeinsame
+Netz an.
+
+Im Reiter *SSL* bei allen dreien: *Request a new SSL Certificate*, dazu *Force
+SSL* und *HTTP/2 Support*. Die DNS-Einträge für alle Namen müssen vorher auf
+den VPS zeigen, sonst schlägt die Ausstellung fehl. Beim MCP-Server ist *Force
+SSL* nicht kosmetisch: über die Leitung geht ein Auffrischungstoken, das 90
+Tage gilt.
 
 ## 5. Ausliefern
 
@@ -170,9 +201,9 @@ Der Job macht der Reihe nach:
 3. `.env` aus den Secrets schreiben, mit Rechten `600`
 4. Proxy-Netz anlegen, falls es fehlt
 5. `docker compose -f docker-compose.prod.yml up -d --build`
-6. Warten, bis `/health` antwortet, und die Landingpage prüfen
+6. Warten, bis `/health` antwortet, und Landingpage und MCP-Server prüfen
 
-Der erste Durchlauf dauert einige Minuten, weil der Server beide Abbilder baut.
+Der erste Durchlauf dauert einige Minuten, weil der Server alle Abbilder baut.
 Danach greifen die Docker-Schichten und es geht deutlich schneller.
 
 ## Nachsehen, wenn etwas klemmt

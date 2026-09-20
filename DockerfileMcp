@@ -1,15 +1,15 @@
 # syntax=docker/dockerfile:1
 
-# Mehrstufiger Bau fuer @wattwerk/backend.
+# Mehrstufiger Bau fuer @wattwerk/mcp im HTTP-Betrieb.
 #
-# Das Laufzeit-Image bekommt nur, was der Server wirklich braucht: das
-# gebuendelte JavaScript und die Produktionsabhaengigkeiten. Quellcode,
-# TypeScript-Compiler und Testwerkzeuge bleiben in den frueheren Stufen.
+# Gebaut wird `serve.js` - der stdio-Einstieg hat im Container nichts zu suchen,
+# weil dort niemand an stdin haengt. Aufgebaut wie DockerfileBackend, damit
+# beide Images sich gleich verhalten.
 
 # ---------- Stufe 1: Abhaengigkeiten ----------
 FROM node:20-alpine AS deps
 
-WORKDIR /api
+WORKDIR /mcp
 
 # Nur die Manifeste, damit diese Schicht im Cache bleibt, solange sich die
 # Abhaengigkeiten nicht aendern. Alle Workspace-Manifeste muessen dabei sein -
@@ -27,16 +27,16 @@ FROM deps AS builder
 
 COPY tsconfig.base.json tsconfig.base.json
 COPY packages/shared packages/shared
-COPY packages/backend packages/backend
+COPY packages/mcp packages/mcp
 
 # esbuild loest @wattwerk/shared auf die Quelle auf, deshalb wird sie hier
 # gebraucht - im Laufzeit-Image dann nicht mehr.
-RUN yarn workspace @wattwerk/backend build
+RUN yarn workspace @wattwerk/mcp build
 
 # ---------- Stufe 3: Laufzeit ----------
 FROM node:20-alpine AS runtime
 
-WORKDIR /api
+WORKDIR /mcp
 
 COPY package.json yarn.lock ./
 COPY packages/shared/package.json packages/shared/package.json
@@ -49,9 +49,9 @@ COPY packages/mcp/package.json packages/mcp/package.json
 # mehr auf "development" setzen.
 RUN NODE_ENV=production yarn install --frozen-lockfile && yarn cache clean
 
-COPY --from=builder /api/packages/backend/dist packages/backend/dist
+COPY --from=builder /mcp/packages/mcp/dist packages/mcp/dist
 
 USER node
-EXPOSE 8080
+EXPOSE 8090
 
-CMD ["node", "packages/backend/dist/index.js"]
+CMD ["node", "packages/mcp/dist/serve.js"]

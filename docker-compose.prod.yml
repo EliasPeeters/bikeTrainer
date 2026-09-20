@@ -89,6 +89,40 @@ services:
       retries: 5
       start_period: 40s
 
+  mcp:
+    build:
+      context: .
+      dockerfile: DockerfileMcp
+    container_name: wattwerk-mcp
+    restart: unless-stopped
+    # Nur auf der Loopback-Adresse, damit hier niemand am Proxy vorbeikommt.
+    ports:
+      - "127.0.0.1:${MCP_PORT:-8090}:8090"
+    networks:
+      - internal
+      - proxy
+    depends_on:
+      - backend
+    environment:
+      # Im internen Netz an die API, nicht über die öffentliche Adresse: der
+      # Umweg über den Proxy wäre ein Sprung nach draußen und zurück, und er
+      # würde bei jedem Zertifikatswechsel mitleiden.
+      WATTWERK_API_URL: http://backend:8080
+      WATTWERK_MCP_PORT: 8090
+      # Welche Browser-Herkünfte zugreifen dürfen. Leer heißt keine - ein
+      # MCP-Client ist normalerweise kein Browser und schickt gar keinen
+      # Origin. Hier etwas einzutragen ist nur nötig, wenn eine Webseite den
+      # Dienst direkt aufruft.
+      WATTWERK_MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS:-}
+      # Der Dienst hält selbst keine Zugangsdaten: jeder Aufruf bringt sein
+      # Token im Authorization-Header mit.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8090/health > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
   landingpage:
     build:
       context: .

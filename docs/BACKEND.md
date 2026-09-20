@@ -68,6 +68,9 @@ statt im Handler auf `undefined` zu prüfen.
 | DELETE | `/collections/:id` | ja | Löschen |
 | POST | `/collections/:id/items` | ja | Programm hineinlegen |
 | DELETE | `/collections/:id/items/:workoutID` | ja | Wieder herausnehmen |
+
+Dieselben Routen liegen als Werkzeuge für Sprachmodelle bereit – siehe
+[MCP.md](MCP.md).
 | GET | `/discover` | optional | Die Reihen der Bibliothek |
 | GET | `/health` | – | Für Compose, Kubernetes, Monitoring |
 

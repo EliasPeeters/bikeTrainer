@@ -3,13 +3,14 @@
 Strukturiertes Indoor-Radtraining: Programme zusammenklicken, Smarttrainer per
 Bluetooth steuern, jede Einheit aufzeichnen.
 
-Das Repo hat drei Teile:
+Das Repo hat vier Teile:
 
 | Teil | Was | Stand |
 |---|---|---|
 | **Apps** | SwiftUI für macOS und tvOS, gemeinsames Swift-Package | Baut und läuft, am echten Trainer ungetestet |
 | **API** | TypeScript, Express, Sequelize, MariaDB, Flyway | Läuft, End-to-End geprüft |
 | **Web-Portal** | Vite, React, nginx – eigener Compose-Stack | Läuft, im Browser durchgespielt |
+| **MCP-Server** | Die API als Werkzeuge für Sprachmodelle, über stdio | Läuft, alle Werkzeuge gegen die echte API geprüft |
 
 Mit Konto liegt alles in der Cloud und ist auf jedem Gerät gleich. **Ohne Konto
 funktioniert die App vollständig** – keine Funktion ist hinter der Anmeldung
@@ -55,6 +56,29 @@ Danach liegt es auf <http://localhost:8089>: Startseite mit Registrierung und
 Anmeldung, dahinter unter `/app` das Portal mit Übersicht, Bibliothek,
 Programm-Editor, Ordnern, Verlauf und Profil.
 
+### MCP-Server
+
+```bash
+yarn mcp:build
+```
+
+Im Repo liegt eine `.mcp.json` – Claude Code findet den Server damit von selbst,
+sobald die Zugangsdaten in der Umgebung stehen:
+
+```bash
+export WATTWERK_EMAIL=du@example.com
+export WATTWERK_PASSWORD=geheim12
+```
+
+Ohne `WATTWERK_API_URL` zeigt er auf die **Live-API**; für den lokalen Stack
+`export WATTWERK_API_URL=http://localhost:8088`. Danach kann ein Assistent den
+Verlauf lesen, die Bibliothek durchsuchen und Programme anlegen – zwanzig
+Werkzeuge, eins je API-Route.
+
+Denselben Server gibt es auch über HTTP, als Container im Produktionsstack
+unter `https://mcp.wattwerk.eliaspeeters.de/mcp`. Dort bringt jeder Aufruf sein
+Token selbst mit, der Dienst speichert keines. Siehe [docs/MCP.md](docs/MCP.md).
+
 ### Alles zusammen ausprobieren
 
 1. **Stack hochfahren** – `docker compose up --build` (API auf 8088) und
@@ -98,12 +122,15 @@ Apps/Wattwerk.xcodeproj      Targets: Wattwerk (macOS 14+), WattwerkTV (tvOS 17+
 package.json                 Yarn-Workspace
 ├── packages/shared              API-Typen, von Backend und Web-Portal genutzt
 ├── packages/backend             Express-API nach dem Vorbild des Livo-Backends
-└── packages/landingpage         Landingpage und Web-Portal (Vite, React, nginx)
+├── packages/landingpage         Landingpage und Web-Portal (Vite, React, nginx)
+└── packages/mcp                 MCP-Server: die API als Werkzeuge für Sprachmodelle
 
 sql/                         Flyway-Migrationen
 docker-compose.yml           API-Stack: db + flyway + backend
 docker-compose-db-only.yml   Nur Datenbank und Migrationen
 docker-compose-landingpage.yml   Landingpage als eigener Stack
+DockerfileBackend / -Landingpage / -Mcp   Die drei Abbilder des Stacks
+.mcp.json                    MCP-Server für Claude Code in diesem Repo
 ```
 
 Beide Seiten sind so geschnitten, dass die Hülle dünn ist: die Swift-Apps
@@ -111,6 +138,7 @@ bestehen aus je einer Datei mit `@main`, und `index.ts` verdrahtet nur Services.
 
 Mehr dazu: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (Apps) ·
 [docs/BACKEND.md](docs/BACKEND.md) (API und Web-Portal) ·
+[docs/MCP.md](docs/MCP.md) (MCP-Server) ·
 [docs/BLUETOOTH.md](docs/BLUETOOTH.md) ·
 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (VPS und Pipeline) ·
 [docs/RELEASE.md](docs/RELEASE.md) (App Store) ·
@@ -150,6 +178,11 @@ veröffentlichen; öffentliche findet man über Suche und die Reihen und kopiert
 sie in die eigene Bibliothek. Ordner fassen Programme zusammen – Ordner und
 Playlist sind dabei dasselbe, mit Reihenfolge.
 
+**Für Sprachmodelle.** Ein MCP-Server legt dieselbe API als Werkzeuge aus:
+Verlauf und Wochenbelastung lesen, die Bibliothek durchsuchen, Programme
+anlegen und ändern, Sammlungen pflegen. Er ist eine dünne Hülle um die
+HTTP-Routen – keine zweite Geschäftslogik, die auseinanderlaufen könnte.
+
 ## Angenommen (ändere das, was nicht passt)
 
 | Thema | Entscheidung | Warum |
@@ -161,6 +194,9 @@ Playlist sind dabei dasselbe, mit Reihenfolge.
 | Editor | Nur Mac/iPad | Strukturierte Workouts mit der Fernbedienung zu tippen ist Quälerei |
 | tvOS-Speicher | Nur Zusammenfassungen | Auf dem Apple TV gibt es kein beschreibbares Dokumentverzeichnis, nur ~500 kB `UserDefaults` |
 | API-Umfang | Konto, Profil, Einheiten, Programme, Ordner | Genau das, was App und Portal brauchen |
+| MCP-Werkzeuge | Kein Konto anlegen, kein Konto löschen | Registrieren ergibt von dort aus keinen Sinn, und ein Werkzeug, das auf Zuruf alles unwiderruflich löscht, ist ein wartendes Missgeschick |
+| MCP über HTTP | Token je Aufruf im Header, keins gespeichert | Ein Dienst, der die Zugangsdaten eines Kontos hält, gibt sie jedem, der die Adresse kennt |
+| MCP-Antworten | Lesbare Zeilen statt JSON | Vierzig Programme als JSON sind hunderttausend Zeichen Blöcke, von denen fast nichts gebraucht wird. Einzelne Programme gibt es auf Wunsch roh |
 | Anmeldung | E-Mail und Passwort, keine Mailbestätigung | Es gibt keinen Mailversand, und eine Spalte ohne Wert lädt nur dazu ein, sich auf sie zu verlassen |
 | Sichtbarkeit | Privat, bis freigegeben | Teilen ist eine Entscheidung, kein Standard |
 | Ordner und Playlists | Ein Begriff: Sammlung | Zwei wären zwei Datenmodelle und die Frage, warum ein Programm nicht in beidem liegen darf |
@@ -170,7 +206,9 @@ Playlist sind dabei dasselbe, mit Reihenfolge.
 ## Geprüft und nicht geprüft
 
 **Geprüft.** Beide App-Targets bauen (Xcode 27, Swift 6), 82 Swift-Tests grün.
-70 Backend-Tests grün, davon 52 gegen eine echte MariaDB. Der API-Stack fährt
+70 Backend-Tests grün, davon 52 gegen eine echte MariaDB. 40 MCP-Tests grün,
+dazu alle zwanzig Werkzeuge einmal von Hand gegen den laufenden Stack — über
+stdio, über HTTP und aus dem fertigen Container heraus. Der API-Stack fährt
 mit `docker compose up` hoch, Flyway spielt beide Migrationen ein. Im Browser
 durchgespielt: registrieren, Programm mit Intervallserie bauen, speichern,
 veröffentlichen. Und sechs Swift-Tests fahren den echten `APIClient` gegen den

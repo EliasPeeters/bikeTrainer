@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "wattwerk": {
+      "command": "node",
+      "args": ["packages/mcp/dist/stdio.js"],
+      "env": {
+        "WATTWERK_API_URL": "${WATTWERK_API_URL:-https://api.wattwerk.eliaspeeters.de}",
+        "WATTWERK_EMAIL": "${WATTWERK_EMAIL:-}",
+        "WATTWERK_PASSWORD": "${WATTWERK_PASSWORD:-}",
+        "WATTWERK_REFRESH_TOKEN": "${WATTWERK_REFRESH_TOKEN:-}"
+      }
+    }
+  }
+}
