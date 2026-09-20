@@ -66,9 +66,13 @@ Im Repo liegt eine `.mcp.json` – Claude Code findet den Server damit von selbs
 sobald die Zugangsdaten in der Umgebung stehen:
 
 ```bash
-export WATTWERK_EMAIL=du@example.com
-export WATTWERK_PASSWORD=geheim12
+export WATTWERK_API_KEY=wk_dein_schluessel
 ```
+
+Den Schlüssel gibt es im Portal unter *Profil → Zugangsschlüssel*. E-Mail und
+Passwort (`WATTWERK_EMAIL`/`WATTWERK_PASSWORD`) gehen auch, sind aber die
+schlechtere Wahl: sie geben vollen Zugriff und lassen sich nicht einzeln
+zurücknehmen.
 
 Ohne `WATTWERK_API_URL` zeigt er auf die **Live-API**; für den lokalen Stack
 `export WATTWERK_API_URL=http://localhost:8088`. Danach kann ein Assistent den
@@ -168,6 +172,11 @@ wieder.
 im Web. Danach gleichen sich Programme, Ordner, Fahrerprofil und gefahrene
 Einheiten ab. Ohne Konto bleibt alles lokal und nichts fehlt.
 
+**Zugangsschlüssel.** Im Portal unter *Profil* anzulegen: ein Schlüssel für
+alles, was in deinem Namen auf die API zugreift. Einzeln zurücknehmbar,
+wahlweise nur mit Leserecht – anders als das Passwort, das vollen Zugriff gibt
+und in keiner Konfigurationsdatei stehen sollte.
+
 **Bibliothek wie ein Streaming-Dienst.** Die Übersicht besteht aus Reihen:
 „Zuletzt gefahren", „Deine Programme", „Top-Tipps", „Kurz und knackig", „Aus dem
 Katalog". Welche es gibt, entscheidet der Server – App und Portal zeigen
@@ -194,6 +203,8 @@ HTTP-Routen – keine zweite Geschäftslogik, die auseinanderlaufen könnte.
 | Editor | Nur Mac/iPad | Strukturierte Workouts mit der Fernbedienung zu tippen ist Quälerei |
 | tvOS-Speicher | Nur Zusammenfassungen | Auf dem Apple TV gibt es kein beschreibbares Dokumentverzeichnis, nur ~500 kB `UserDefaults` |
 | API-Umfang | Konto, Profil, Einheiten, Programme, Ordner | Genau das, was App und Portal brauchen |
+| Zugangsschlüssel | Eigene Tabelle statt langlebiger Tokens | Ein Auffrischungstoken lässt sich nur zurückziehen, indem man das Geheimnis wechselt – und wirft damit auch alle Apps raus |
+| Schlüssel-Rechte | Nur `read` und `full`, `read` heißt GET | Feingranulare Rechte, die niemand versteht, werden auf „alles" gestellt |
 | MCP-Werkzeuge | Kein Konto anlegen, kein Konto löschen | Registrieren ergibt von dort aus keinen Sinn, und ein Werkzeug, das auf Zuruf alles unwiderruflich löscht, ist ein wartendes Missgeschick |
 | MCP über HTTP | Token je Aufruf im Header, keins gespeichert | Ein Dienst, der die Zugangsdaten eines Kontos hält, gibt sie jedem, der die Adresse kennt |
 | MCP-Antworten | Lesbare Zeilen statt JSON | Vierzig Programme als JSON sind hunderttausend Zeichen Blöcke, von denen fast nichts gebraucht wird. Einzelne Programme gibt es auf Wunsch roh |

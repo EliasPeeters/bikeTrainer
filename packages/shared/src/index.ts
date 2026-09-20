@@ -1,3 +1,4 @@
+export * from "./types/apikey"
 export * from "./types/auth"
 export * from "./types/collection"
 export * from "./types/discovery"

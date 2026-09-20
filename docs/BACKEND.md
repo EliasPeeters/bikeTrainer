@@ -53,6 +53,9 @@ statt im Handler auf `undefined` zu prüfen.
 | GET | `/me` | ja | Fahrerprofil lesen |
 | PUT | `/me` | ja | FTP, Puls, Gewicht, Name ändern |
 | POST | `/me/delete` | ja | Konto endgültig löschen (Passwort im Körper) |
+| GET | `/me/keys` | ja, **ohne Schlüssel** | Eigene Zugangsschlüssel |
+| POST | `/me/keys` | ja, **ohne Schlüssel** | Schlüssel anlegen (der Schlüssel steht nur in dieser Antwort) |
+| DELETE | `/me/keys/:id` | ja, **ohne Schlüssel** | Schlüssel zurücknehmen |
 | POST | `/sessions` | ja | Gefahrene Einheit hochladen |
 | GET | `/sessions` | ja | Verlauf plus Wochenbelastung |
 | DELETE | `/sessions/:id` | ja | Einheit löschen |
@@ -73,6 +76,40 @@ Dieselben Routen liegen als Werkzeuge für Sprachmodelle bereit – siehe
 [MCP.md](MCP.md).
 | GET | `/discover` | optional | Die Reihen der Bibliothek |
 | GET | `/health` | – | Für Compose, Kubernetes, Monitoring |
+
+### Zugangsschlüssel
+
+Ein Zugangstoken gilt fünfzehn Minuten, ein Auffrischungstoken 90 Tage. Für
+eine eingetragene Verbindung – einen MCP-Server, ein Skript – taugt beides
+nicht: das eine ist zu kurz, das andere lässt sich nur zurückziehen, indem man
+`REFRESH_TOKEN_SECRET` wechselt und damit auch alle Apps aus der Anmeldung
+wirft.
+
+Ein Zugangsschlüssel (`wk_` plus 256 Bit Zufall, base64url) ist die Antwort
+darauf. Er wird wie ein Zugangstoken geschickt:
+
+```
+Authorization: Bearer wk_WGSqRTW2ENrxJLvMkkxi-U1O83vshj3Kvri5CKPJ7mg
+```
+
+Gespeichert wird nur sein SHA-256 – kein bcrypt, weil ein Schlüssel nicht zu
+erraten ist und bei *jedem* Aufruf nachgeschlagen wird; eine absichtlich
+langsame Funktion wäre hier die Bremse für jeden Request.
+
+Drei Grenzen sind eingezogen:
+
+* **`scope: 'read'` darf nur GET.** Die Regel steht in `wrapRequest` und nicht
+  in den Handlern – eine vergessene Prüfung gäbe sonst stillschweigend
+  Schreibrecht, und genau das soll `read` ausschließen.
+* **Ein Schlüssel verwaltet keine Schlüssel** (`allowApiKey: false`). Sonst
+  verlängerte sich ein abgegriffener Schlüssel selbst, indem er einen zweiten
+  anlegt, und das Zurücknehmen liefe ins Leere.
+* **Ein Schlüssel löscht kein Konto.** Aus demselben Grund.
+
+`lastUsedAt` wird höchstens stündlich nachgezogen. Bei jedem Aufruf zu
+schreiben hieße, dass jede Leseanfrage ein Schreibvorgang ist – bei einem
+Assistenten, der zehn Werkzeuge hintereinander aufruft, zehn Updates auf
+dieselbe Zeile.
 
 ### Programme, Sichtbarkeit und Sammlungen
 

@@ -13,6 +13,10 @@ import {createMcpServer} from "./index"
  * Token mit, der Server speichert keines, und ohne Token gibt es nichts - auch
  * nicht die oeffentlichen Werkzeuge. Wer den Katalog ohne Konto lesen will,
  * fragt die API direkt; dafuer braucht es keinen MCP-Server.
+ *
+ * Als Token taugt ein Zugangsschluessel (`wk_...`) oder ein Auffrischungstoken.
+ * Der Schluessel ist der bessere Weg: er laesst sich einzeln zuruecknehmen,
+ * kann auf Lesen beschraenkt werden und laeuft nicht nach 90 Tagen ab.
  */
 
 export const MCP_PATH = "/mcp"
@@ -70,8 +74,8 @@ async function handle(request: IncomingMessage, response: ServerResponse) {
             401,
             rpcError(
                 -32001,
-                "Kein Token. Schicke \"Authorization: Bearer <refreshToken>\" mit - " +
-                    "der refreshToken aus POST /auth/login der Wattwerk-API."
+                "Kein Token. Schicke \"Authorization: Bearer wk_...\" mit - einen " +
+                    "Zugangsschlüssel aus dem Wattwerk-Portal unter Profil → Zugangsschlüssel."
             )
         )
         return

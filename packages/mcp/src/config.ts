@@ -42,9 +42,18 @@ export interface Credentials {
     source: CredentialSource
     email?: string
     password?: string
+    /**
+     * Ein Zugangsschluessel aus dem Web-Portal (`wk_...`). Er laeuft nicht ab
+     * und wird unveraendert an die API weitergereicht - es gibt nichts
+     * einzutauschen.
+     */
+    apiKey?: string
     accessToken?: string
     refreshToken?: string
 }
+
+/** Zugangsschluessel tragen dieses Praefix, siehe ApiKeyToken.ts im Backend. */
+export const API_KEY_PREFIX = "wk_"
 
 export function credentialsFromEnv(): Credentials {
     const value = (name: string): string | undefined => {
@@ -55,6 +64,7 @@ export function credentialsFromEnv(): Credentials {
         source: "env",
         email: value("WATTWERK_EMAIL"),
         password: value("WATTWERK_PASSWORD"),
+        apiKey: value("WATTWERK_API_KEY"),
         accessToken: value("WATTWERK_ACCESS_TOKEN"),
         refreshToken: value("WATTWERK_REFRESH_TOKEN"),
     }
@@ -63,9 +73,10 @@ export function credentialsFromEnv(): Credentials {
 /**
  * `Authorization: Bearer <token>` aus einem HTTP-Aufruf.
  *
- * Das Token wird als Auffrischungstoken gelesen: ein Zugangstoken gilt fuenfzehn
- * Minuten, was fuer eine eingetragene Verbindung unbrauchbar ist. Der Server
- * tauscht es bei jedem Aufruf gegen ein frisches Zugangstoken und behaelt nichts.
+ * Ein Zugangsschluessel (`wk_...`) geht unveraendert an die API weiter. Alles
+ * andere wird als Auffrischungstoken gelesen und bei jedem Aufruf gegen ein
+ * frisches Zugangstoken getauscht - ein Zugangstoken selbst gilt fuenfzehn
+ * Minuten und taugt fuer eine eingetragene Verbindung nicht.
  */
 export function credentialsFromAuthorizationHeader(header: string | undefined): Credentials | null {
     if (typeof header !== "string") {
@@ -75,12 +86,16 @@ export function credentialsFromAuthorizationHeader(header: string | undefined): 
     if (parts.length !== 2 || parts[0].toLowerCase() !== "bearer" || parts[1].length === 0) {
         return null
     }
-    return {source: "header", refreshToken: parts[1]}
+    const token = parts[1]
+    return token.startsWith(API_KEY_PREFIX)
+        ? {source: "header", apiKey: token}
+        : {source: "header", refreshToken: token}
 }
 
 export function hasCredentials(credentials: Credentials): boolean {
     return (
         (credentials.email !== undefined && credentials.password !== undefined) ||
+        credentials.apiKey !== undefined ||
         credentials.accessToken !== undefined ||
         credentials.refreshToken !== undefined
     )

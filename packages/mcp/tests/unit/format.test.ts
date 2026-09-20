@@ -128,6 +128,8 @@ describe("Programmzeilen", () => {
         const detail = workoutDetail(workout())
         expect(detail).toContain("Schwelle 2×20")
         expect(detail).toContain("2 Blöcke")
+        expect(workoutDetail(workout({segments: [{durationSeconds: 60, target: {type: "free"}}]})))
+            .toContain("1 Block ·")
         expect(detail).toContain("10:00 @ 55 % FTP")
         expect(detail).toContain("20:00 @ 98 % FTP")
     })

@@ -118,7 +118,7 @@ export function workoutDetail(workout: WorkoutDTO): string {
         `${workout.name} (id: ${workout.id})`,
         workout.summary.length > 0 ? workout.summary : null,
         `${clock(workout.durationSeconds)} · ${Math.round(workout.plannedTSS)} TSS · ` +
-            `${workout.segments.length} Blöcke · ` +
+            `${count(workout.segments.length, "Block", "Blöcke")} · ` +
             `${workout.visibility === "public" ? "öffentlich" : "privat"}` +
             `${workout.isBuiltIn ? " · aus dem Katalog" : ""}`,
         workout.tags.length > 0 ? workout.tags.map((tag) => `#${tag}`).join(" ") : null,

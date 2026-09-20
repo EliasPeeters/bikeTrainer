@@ -12,7 +12,7 @@ import {RouteParameters} from "express-serve-static-core"
 import {IncomingHttpHeaders} from "node:http"
 import {Socket} from "node:net"
 import {ParsedQs} from "qs"
-import {ApiErrorCode, ApiErrorResponse} from "@wattwerk/shared"
+import {ApiErrorCode, ApiErrorResponse, ApiKeyScope} from "@wattwerk/shared"
 import {CORS_ORIGINS, IS_PRODUCTION} from "./config/env"
 import {Sequelize, Transaction} from "sequelize"
 import {sequelize} from "./db/db"
@@ -159,6 +159,13 @@ export class Server {
 
 // MARK: - Routen-Optionen
 
+/**
+ * `allowApiKey: false` schliesst Zugangsschluessel aus und verlangt eine echte
+ * Anmeldung. Das gilt fuer die Routen, mit denen man Schluessel verwaltet oder
+ * das Konto loescht: sonst koennte sich ein abgegriffener Schluessel selbst
+ * verlaengern, indem er einen zweiten anlegt, und das Zuruecknehmen liefe ins
+ * Leere.
+ */
 export type RequestOptions =
     | {
           authenticated: false
@@ -169,11 +176,13 @@ export type RequestOptions =
           databaseTransaction?: boolean
           /** `true` laedt den Nutzer und legt ihn in `request.user`. */
           includeUser?: false
+          allowApiKey?: boolean
       }
     | {
           authenticated: true
           databaseTransaction?: boolean
           includeUser: true
+          allowApiKey?: boolean
       }
 
 /**
@@ -219,6 +228,8 @@ type DBUserType = import("./db/DBUser").DBUser
 
 interface RequestLocals {
     userID?: number
+    /** Gesetzt, wenn die Identitaet aus einem Zugangsschluessel kommt. */
+    apiKeyScope?: ApiKeyScope
     [key: string]: unknown
 }
 
@@ -239,6 +250,29 @@ async function wrapRequest<Options extends RequestOptions, RequestBody, Response
         if (options.authenticated && userID === undefined) {
             failure<ResponseBody>(401, "UNAUTHORIZED", "Anmeldung erforderlich.").buildResponse(expressResponse)
             return
+        }
+
+        const apiKeyScope = expressResponse.locals.apiKeyScope
+        if (apiKeyScope !== undefined && options.authenticated) {
+            if (options.allowApiKey === false) {
+                failure<ResponseBody>(
+                    403,
+                    "UNAUTHORIZED",
+                    "Das geht nur mit einer richtigen Anmeldung, nicht mit einem Zugangsschlüssel."
+                ).buildResponse(expressResponse)
+                return
+            }
+            // Lesen heisst GET. Die Regel steht hier und nicht in jedem
+            // Handler, weil eine vergessene Pruefung sonst stillschweigend
+            // Schreibrecht gaebe - und genau das soll `read` ausschliessen.
+            if (apiKeyScope === "read" && expressRequest.method !== "GET") {
+                failure<ResponseBody>(
+                    403,
+                    "UNAUTHORIZED",
+                    "Dieser Zugangsschlüssel darf nur lesen."
+                ).buildResponse(expressResponse)
+                return
+            }
         }
 
         const baseRequest: Request<RouteParameters<Route>, RequestBody> = {

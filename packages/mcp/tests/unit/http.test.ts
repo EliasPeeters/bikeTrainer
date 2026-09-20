@@ -43,6 +43,11 @@ beforeEach(() => {
                 ? {accessToken: "access-1", refreshToken: "refresh-2"}
                 : {error: "INVALID_TOKEN", message: "Token ungültig."})
         }
+        // Ein Zugangsschluessel geht direkt an die API; nur der gute wird angenommen.
+        const authorization = (init.headers as Record<string, string>)["authorization"] ?? ""
+        if (authorization === "Bearer wk_zurueckgenommen") {
+            return json(401, {error: "UNAUTHORIZED", message: "Anmeldung erforderlich."})
+        }
         return json(200, {workouts: []})
     }) as typeof fetch
 })
@@ -88,7 +93,7 @@ describe("Torwache", () => {
         const response = await call("/mcp", {body: {jsonrpc: "2.0", id: 1, method: "tools/list"}})
         expect(response.status).toBe(401)
         expect(response.headers.get("www-authenticate")).toBe('Bearer realm="wattwerk"')
-        expect(response.body.error.message).toContain("Authorization: Bearer")
+        expect(response.body.error.message).toContain("Authorization: Bearer wk_")
         // Ohne Token darf nicht einmal die API angefasst werden.
         expect(apiCalls).toHaveLength(0)
     })
@@ -118,6 +123,42 @@ describe("Torwache", () => {
         })
         expect(response.status).toBe(204)
         expect(response.headers.get("access-control-allow-origin")).toBeNull()
+    })
+})
+
+describe("Zugangsschlüssel", () => {
+    it("geht unverändert an die API - nichts wird eingetauscht", async () => {
+        await call("/mcp", {
+            token: "wk_einguterschluessel",
+            body: {
+                jsonrpc: "2.0",
+                id: 1,
+                method: "tools/call",
+                params: {name: "list_my_workouts", arguments: {}},
+            },
+        })
+
+        // Kein /auth/refresh: ein Schlüssel läuft nicht ab.
+        expect(apiCalls.map((entry) => entry.url).filter((url) => url.includes("/auth/"))).toEqual([])
+        expect(apiCalls[0].url).toContain("/workouts")
+    })
+
+    it("sagt bei einem zurückgenommenen Schlüssel, was zu tun ist", async () => {
+        const response = await call("/mcp", {
+            token: "wk_zurueckgenommen",
+            body: {
+                jsonrpc: "2.0",
+                id: 1,
+                method: "tools/call",
+                params: {name: "list_my_workouts", arguments: {}},
+            },
+        })
+
+        const text = response.body.result.content[0].text
+        expect(response.body.result.isError).toBe(true)
+        expect(text).toContain("zurückgenommen")
+        // Und kein zweiter Versuch: ein Schlüssel lässt sich nicht auffrischen.
+        expect(apiCalls).toHaveLength(1)
     })
 })
 

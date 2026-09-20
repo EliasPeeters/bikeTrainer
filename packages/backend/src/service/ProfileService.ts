@@ -51,7 +51,7 @@ export class ProfileService {
         // POST statt DELETE, weil ein Koerper mitgeht: nicht jeder Client und
         // nicht jeder Proxy reicht einen Koerper bei DELETE durch.
         server
-            .route("/me/delete", {authenticated: true, includeUser: true})
+            .route("/me/delete", {authenticated: true, includeUser: true, allowApiKey: false})
             .postJSON<DeleteAccountRequest, {deleted: boolean}>(async (request) => {
                 const password = request.body?.password
                 if (typeof password !== "string" || password.length === 0) {

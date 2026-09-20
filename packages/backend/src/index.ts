@@ -1,10 +1,12 @@
 import {ACCESS_TOKEN_SECRET, assertProductionConfig, PORT, REFRESH_TOKEN_SECRET} from "./config/env"
 import {waitForDatabase} from "./db/db"
 // Nur wegen der Nebenwirkung: registriert Modelle und Verknuepfungen.
+import "./db/DBApiKey"
 import "./db/DBTrainingSession"
 import "./db/DBCollection"
 import "./db/DBWorkout"
 import {Server} from "./server"
+import {ApiKeyService} from "./service/ApiKeyService"
 import {AuthService} from "./service/AuthService"
 import {CollectionService} from "./service/CollectionService"
 import {DiscoveryService} from "./service/DiscoveryService"
@@ -34,6 +36,7 @@ export function createServer(): Server {
     new HealthService().configure(server)
     new AuthService(tokenService, passwordService).configure(server)
     new ProfileService(passwordService).configure(server)
+    new ApiKeyService().configure(server)
     new TrainingSessionService().configure(server)
     new WorkoutService().configure(server)
     new CollectionService().configure(server)

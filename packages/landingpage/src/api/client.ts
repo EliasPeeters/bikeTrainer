@@ -1,8 +1,11 @@
 import type {
     ApiErrorResponse,
+    ApiKeyListResponse,
     AuthResponse,
     CollectionDTO,
     CollectionListResponse,
+    CreateApiKeyRequest,
+    CreateApiKeyResponse,
     DiscoveryResponse,
     LoginRequest,
     RefreshTokenResponse,
@@ -197,6 +200,15 @@ export const api = {
     },
     deleteAccount(password: string) {
         return call<{deleted: boolean}>("/me/delete", {method: "POST", body: {password}})
+    },
+    apiKeys() {
+        return call<ApiKeyListResponse>("/me/keys")
+    },
+    createApiKey(body: CreateApiKeyRequest) {
+        return call<CreateApiKeyResponse>("/me/keys", {method: "POST", body})
+    },
+    deleteApiKey(id: number) {
+        return call<{deleted: boolean}>(`/me/keys/${id}`, {method: "DELETE"})
     },
     sessions(limit = 50) {
         return call<TrainingSessionListResponse>("/sessions", {query: {limit}})

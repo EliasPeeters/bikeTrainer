@@ -69,8 +69,16 @@ export class WattwerkClient {
      * stdio-Betrieb. Im HTTP-Betrieb bekommt jeder Aufruf seinen eigenen
      * Client mit dem Token aus dem Authorization-Header.
      */
+    /**
+     * Ein Zugangsschluessel ist kein Token, das abläuft - er wird direkt als
+     * Bearer benutzt und nie eingetauscht. Deshalb der eigene Merker: ohne ihn
+     * wuerde ein 401 eine sinnlose Anmeldung ausloesen.
+     */
+    private readonly staticToken: boolean
+
     constructor(private readonly credentials: Credentials = credentialsFromEnv()) {
-        this.accessToken = credentials.accessToken ?? null
+        this.staticToken = credentials.apiKey !== undefined
+        this.accessToken = credentials.apiKey ?? credentials.accessToken ?? null
         this.refreshToken = credentials.refreshToken ?? null
     }
 
@@ -228,6 +236,9 @@ export class WattwerkClient {
         const response = await this.send(path, options, authenticated)
 
         if (response.status === 401 && authenticated) {
+            if (this.staticToken) {
+                throw new WattwerkApiError(401, "INVALID_TOKEN", this.badKeyHint())
+            }
             this.accessToken = null
             await this.ensureToken()
             return await this.unwrap<T>(await this.send(path, options, true))
@@ -343,10 +354,18 @@ export class WattwerkClient {
     /** Der Hinweis haengt daran, wo der Aufrufer nachsehen muss. */
     private missingCredentialsHint(): string {
         return this.credentials.source === "header"
-            ? "Dafuer braucht es ein Konto. Schicke das Auffrischungstoken als " +
-                  "\"Authorization: Bearer <refreshToken>\" mit."
+            ? "Dafuer braucht es ein Konto. Schicke einen Zugangsschlüssel als " +
+                  "\"Authorization: Bearer wk_...\" mit - im Web-Portal unter Profil anzulegen."
             : "Dafuer braucht es ein Konto. Setze WATTWERK_EMAIL und WATTWERK_PASSWORD " +
                   "(oder WATTWERK_REFRESH_TOKEN) in der Konfiguration des MCP-Servers."
+    }
+
+    private badKeyHint(): string {
+        return this.credentials.source === "header"
+            ? "Der Zugangsschlüssel wird nicht angenommen. Er wurde zurückgenommen, ist abgelaufen " +
+                  "oder gehört zu einer anderen Wattwerk-Installation."
+            : "Der Zugangsschlüssel in WATTWERK_API_KEY wird nicht angenommen. Er wurde " +
+                  "zurückgenommen oder ist abgelaufen - im Web-Portal unter Profil einen neuen anlegen."
     }
 
     private badTokenHint(): string {

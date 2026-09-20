@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken"
 import {ACCESS_TOKEN_LIFETIME, REFRESH_TOKEN_LIFETIME} from "../config/env"
 import {DBUser} from "../db/DBUser"
 import {Server} from "../server"
+import {isApiKey} from "./ApiKeyToken"
 
 export interface JWTPayload {
     userID: number
@@ -22,19 +23,51 @@ export class TokenService {
      */
     public configure(server: Server) {
         server.app.use((request: ExpressRequest, response: ExpressResponse, next: NextFunction) => {
-            const authHeader = request.headers["authorization"]
-
-            if (typeof authHeader === "string") {
-                const parts = authHeader.split(" ")
-                if (parts.length === 2 && parts[0].toLowerCase() === "bearer") {
-                    const payload = this.validateAccessToken(parts[1])
-                    if (payload !== undefined) {
-                        response.locals.userID = payload.userID
-                    }
-                }
-            }
-            next()
+            // Der Zugangsschluessel muss nachgeschlagen werden, also ist die
+            // Middleware asynchron. `next` laeuft in jedem Fall - ein
+            // unbrauchbarer Header ist kein Fehler, sondern nur keine Identitaet.
+            void this.identify(request, response).catch((error) => {
+                console.error("[AUTH] Identifizierung fehlgeschlagen", error)
+            }).finally(() => next())
         })
+    }
+
+    /**
+     * Legt die Identitaet des Aufrufers in `response.locals` ab - aus einem
+     * Zugangstoken oder aus einem Zugangsschluessel.
+     *
+     * Entschieden wird nichts: ob eine Route Anmeldung verlangt, steht in den
+     * Routen-Optionen. So funktionieren Routen, die angemeldet und nicht
+     * angemeldet erreichbar sind, ohne Sonderfall.
+     */
+    private async identify(request: ExpressRequest, response: ExpressResponse): Promise<void> {
+        const authHeader = request.headers["authorization"]
+        if (typeof authHeader !== "string") {
+            return
+        }
+        const parts = authHeader.split(" ")
+        if (parts.length !== 2 || parts[0].toLowerCase() !== "bearer") {
+            return
+        }
+        const token = parts[1]
+
+        if (isApiKey(token)) {
+            // Erst hier geladen, nicht oben: ein Wert-Import von DBApiKey zoege
+            // `db.ts` und damit eine Verbindung mit herein - auch in die
+            // Unit-Tests, die keine Datenbank haben.
+            const {resolveApiKey} = await import("./ApiKeyService")
+            const resolved = await resolveApiKey(token)
+            if (resolved !== null) {
+                response.locals.userID = resolved.userID
+                response.locals.apiKeyScope = resolved.scope
+            }
+            return
+        }
+
+        const payload = this.validateAccessToken(token)
+        if (payload !== undefined) {
+            response.locals.userID = payload.userID
+        }
     }
 
     public generateAccessToken(user: DBUser): string {

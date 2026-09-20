@@ -79,11 +79,18 @@ nehmen.
 | Variable | Standard | Zweck |
 |---|---|---|
 | `WATTWERK_API_URL` | `http://localhost:8088` | Adresse der API |
+| `WATTWERK_API_KEY` | – | **Der empfohlene Weg.** Zugangsschlüssel aus dem Portal |
 | `WATTWERK_EMAIL` | – | Konto, mit dem gearbeitet wird |
 | `WATTWERK_PASSWORD` | – | Passwort dazu |
 | `WATTWERK_REFRESH_TOKEN` | – | Statt E-Mail und Passwort |
 | `WATTWERK_ACCESS_TOKEN` | – | Nur für kurze Läufe – gilt 15 Minuten |
 | `WATTWERK_TIMEOUT_MS` | `20000` | Geduld mit der API |
+
+**Zugangsschlüssel sind der beste Weg.** Im Web-Portal unter *Profil →
+Zugangsschlüssel* auf „Schlüssel anlegen", den Wert kopieren, als
+`WATTWERK_API_KEY` eintragen. Er läuft nicht ab, lässt sich einzeln
+zurücknehmen und kann auf Lesen beschränkt werden – anders als das Passwort,
+das vollen Zugriff gibt und in einer Konfigurationsdatei nichts zu suchen hat.
 
 Ohne Zugangsdaten startet der Server trotzdem; nutzbar sind dann die
 öffentlichen Werkzeuge (`search_workouts`, `get_workout`, `browse_library`,
@@ -181,8 +188,8 @@ Bei stdio gehört der Prozess einem Menschen, und seine Zugangsdaten stehen in
 der Umgebung. Über HTTP kann jeder anklopfen. Deshalb gilt dort:
 
 * **Jeder Aufruf bringt sein eigenes Token mit**, als
-  `Authorization: Bearer <refreshToken>`. Der Dienst speichert keine
-  Zugangsdaten – weder in der Umgebung noch zwischen zwei Aufrufen.
+  `Authorization: Bearer wk_…`. Der Dienst speichert keine Zugangsdaten –
+  weder in der Umgebung noch zwischen zwei Aufrufen.
 * **Ohne Token gibt es nichts**, auch nicht die öffentlichen Werkzeuge. Wer den
   Katalog ohne Konto lesen will, fragt die API direkt; dafür braucht es keinen
   MCP-Server.
