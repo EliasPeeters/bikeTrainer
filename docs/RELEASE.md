@@ -74,9 +74,6 @@ App Store Connect ab. Vor dem nächsten Upload also
 
 ## Was vor dem Einreichen noch fehlt
 
-* In der Datenschutzerklärung unter `/datenschutz`: Anschrift, Kontakt und
-  Hoster eintragen.
-* Impressum nach DDG.
 * Im Fragebogen von App Store Connect dieselben Datenarten angeben wie in
   `PrivacyInfo.xcprivacy`: E-Mail, Name, Fitness, Gesundheit — jeweils dem Konto
   zugeordnet, kein Tracking.

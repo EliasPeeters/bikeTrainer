@@ -48,7 +48,10 @@ export function PortalLayout() {
 
             <footer className="page bottom">
                 <span>Wattwerk</span>
-                <NavLink to="/datenschutz">Datenschutz</NavLink>
+                <span className="legal-links">
+                    <NavLink to="/datenschutz">Datenschutz</NavLink>
+                    <NavLink to="/impressum">Impressum</NavLink>
+                </span>
             </footer>
         </div>
     )

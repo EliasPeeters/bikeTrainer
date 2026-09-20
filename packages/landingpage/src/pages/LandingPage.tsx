@@ -155,6 +155,7 @@ export function LandingPage() {
                         <a href="#funktionen">Funktionen</a>
                         <a href="#plattformen">Plattformen</a>
                         <Link to="/datenschutz">Datenschutz</Link>
+                        <Link to="/impressum">Impressum</Link>
                     </div>
 
                     <div className="menu-actions">
@@ -283,8 +284,9 @@ export function LandingPage() {
 
                 <footer className="bottom">
                     <span>Wattwerk – strukturiertes Indoor-Radtraining</span>
-                    <span>
+                    <span className="legal-links">
                         <Link to="/datenschutz">Datenschutz</Link>
+                        <Link to="/impressum">Impressum</Link>
                     </span>
                 </footer>
             </main>

@@ -5,6 +5,7 @@ import {DashboardPage} from "./pages/DashboardPage"
 import {HistoryPage} from "./pages/HistoryPage"
 import {LandingPage} from "./pages/LandingPage"
 import {LibraryPage} from "./pages/LibraryPage"
+import {ImprintPage} from "./pages/ImprintPage"
 import {PrivacyPage} from "./pages/PrivacyPage"
 import {ProfilePage} from "./pages/ProfilePage"
 import {WorkoutDetailPage} from "./pages/WorkoutDetailPage"
@@ -27,8 +28,10 @@ export function App() {
         <Routes>
             <Route path="/" element={user === null ? <LandingPage /> : <Navigate to="/app" replace />} />
             {/* Ohne Anmeldung erreichbar - App Store Connect ruft die Adresse
-                auf, und zwar ohne Konto. */}
+                auf, und zwar ohne Konto. Das Impressum muss aus demselben Grund
+                offen liegen: eine Pflichtangabe hinter einer Anmeldung ist keine. */}
             <Route path="/datenschutz" element={<PrivacyPage />} />
+            <Route path="/impressum" element={<ImprintPage />} />
             <Route path="/app" element={user === null ? <Navigate to="/" replace /> : <PortalLayout />}>
                 <Route index element={<DashboardPage />} />
                 <Route path="bibliothek" element={<LibraryPage />} />

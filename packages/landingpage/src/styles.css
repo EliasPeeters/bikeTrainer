@@ -462,14 +462,18 @@ select, input[type="search"], input[type="number"], input[type="text"]:not(.segm
 .legal p, .legal li { color: var(--text-muted); line-height: 1.7; }
 .legal ul { padding-left: 1.2rem; }
 .legal a { color: var(--accent); }
-.legal .todo {
-    border-left: 3px solid var(--accent);
-    background: rgba(78, 149, 248, 0.08);
-    padding: 0.75rem 1rem;
-    border-radius: 0 9px 9px 0;
-    color: var(--text);
-    font-size: 0.9rem;
+/* Anschriften stehen im Impressum und in der Datenschutzerklärung. <address>
+   setzt der Browser von sich aus kursiv - das liest sich bei einer Anschrift
+   wie eine Randbemerkung, und genau das ist sie hier nicht. */
+.legal .contact {
+    font-style: normal;
+    color: var(--text-muted);
+    line-height: 1.7;
 }
+
+/* Datenschutz und Impressum stehen im Fuß nebeneinander. Ohne die Lücke kleben
+   die beiden Verweise aneinander und lesen sich als einer. */
+.legal-links { display: inline-flex; gap: 1.25rem; }
 
 /* ---------- Startseite ---------- */
 

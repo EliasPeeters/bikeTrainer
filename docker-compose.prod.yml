@@ -14,10 +14,21 @@
 
 name: wattwerk
 
+# Ohne Begrenzung schreibt Docker die Protokolle in eine Datei, die nur wächst -
+# bis die Platte voll ist. Und die Datenschutzerklärung sagt, dass Protokolle
+# sich fortlaufend selbst überschreiben; ohne diese Zeilen wäre das nicht wahr.
+# Drei Dateien zu 10 MB je Dienst: genug zum Nachsehen, begrenzt nach oben.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   db:
     image: mariadb:11.4
     container_name: wattwerk-db
+    logging: *logging
     restart: unless-stopped
     environment:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD fehlt}
@@ -58,6 +69,7 @@ services:
       context: .
       dockerfile: DockerfileBackend
     container_name: wattwerk-backend
+    logging: *logging
     restart: unless-stopped
     # Nur auf der Loopback-Adresse, damit hier niemand am Proxy vorbeikommt.
     ports:
@@ -94,6 +106,7 @@ services:
       context: .
       dockerfile: DockerfileMcp
     container_name: wattwerk-mcp
+    logging: *logging
     restart: unless-stopped
     # Nur auf der Loopback-Adresse, damit hier niemand am Proxy vorbeikommt.
     ports:
@@ -128,6 +141,7 @@ services:
       context: .
       dockerfile: DockerfileLandingpage
     container_name: wattwerk-landingpage
+    logging: *logging
     restart: unless-stopped
     ports:
       - "127.0.0.1:${LANDINGPAGE_PORT:-8089}:80"
