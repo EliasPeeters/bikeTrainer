@@ -27,7 +27,7 @@ struct DevicesView: View {
             .padding(24)
         }
         .background(Theme.background)
-        .navigationTitle("Geräte")
+        .sectionTitle("Geräte")
         .onAppear { bluetooth.reconnectKnownDevices() }
         .onDisappear { bluetooth.stopScan() }
     }

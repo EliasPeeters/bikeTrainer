@@ -29,10 +29,10 @@ struct LibraryView: View {
                         collectionsSection
                     }
                 }
-                .padding(.vertical, 24)
+                .padding(.vertical, Theme.pageInset * 0.6)
             }
             .background(Theme.background)
-            .navigationTitle("Training")
+            .sectionTitle("Training")
             .navigationDestination(for: Workout.self) { workout in
                 WorkoutDetailView(model: model, workout: workout)
             }
@@ -70,8 +70,12 @@ struct LibraryView: View {
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 3) {
+                // Auf dem Apple TV steht "Training" bereits in der Leiste ganz
+                // oben. Ein zweites Mal wäre nur Lärm.
+                #if !os(tvOS)
                 Text("Training")
                     .font(.system(size: 28 * Theme.scale, weight: .bold, design: .rounded))
+                #endif
                 Text(model.account.isSignedIn
                     ? "Deine Bibliothek, überall gleich."
                     : "Lokale Bibliothek. Mit Konto liegt sie in der Cloud.")
@@ -85,14 +89,14 @@ struct LibraryView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.horizontal, 24)
+        .padding(.horizontal, Theme.pageInset)
     }
 
     private var collectionsSection: some View {
         VStack(alignment: .leading, spacing: 14 * Theme.scale) {
             Text("Deine Ordner")
                 .font(.system(size: 20 * Theme.scale, weight: .semibold))
-                .padding(.horizontal, 24)
+                .padding(.horizontal, Theme.pageInset)
 
             ForEach(model.collections, id: \.id) { collection in
                 VStack(alignment: .leading, spacing: 8) {
@@ -105,13 +109,13 @@ struct LibraryView: View {
                             .font(.system(size: 12 * Theme.scale))
                             .foregroundStyle(.secondary)
                     }
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, Theme.pageInset)
 
                     if collection.workouts.isEmpty {
                         Text("Noch leer. Im Web-Portal lassen sich Programme hineinlegen.")
                             .font(.system(size: 13 * Theme.scale))
                             .foregroundStyle(.secondary)
-                            .padding(.horizontal, 24)
+                            .padding(.horizontal, Theme.pageInset)
                     } else {
                         cardScroller(collection.workouts.map { $0.makeWorkout() })
                     }
@@ -122,7 +126,7 @@ struct LibraryView: View {
 
     private func cardScroller(_ workouts: [Workout]) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 16) {
+            HStack(spacing: 16 * Theme.scale) {
                 ForEach(workouts) { workout in
                     Button {
                         path.append(workout)
@@ -130,11 +134,17 @@ struct LibraryView: View {
                         WorkoutCard(workout: workout, ftp: ftp)
                             .frame(width: 260 * Theme.scale)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(CardButtonStyle())
+                    .withoutSystemFocusEffect()
                 }
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, Theme.pageInset)
+            // Die fokussierte Karte tritt hervor - ohne diese Luft würde sie
+            // oben und unten am Rand der Bildlauffläche abgeschnitten.
+            .padding(.vertical, Theme.focusBleed)
         }
+        .padding(.vertical, -Theme.focusBleed)
+        .focusGroup()
     }
 }
 
@@ -155,10 +165,10 @@ struct WorkoutRowView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, Theme.pageInset)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
+                HStack(spacing: 16 * Theme.scale) {
                     ForEach(row.workouts) { workout in
                         Button {
                             onSelect(workout)
@@ -166,11 +176,17 @@ struct WorkoutRowView: View {
                             WorkoutCard(workout: workout, ftp: ftp)
                                 .frame(width: 260 * Theme.scale)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(CardButtonStyle())
+                        .withoutSystemFocusEffect()
                     }
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, Theme.pageInset)
+                // Luft für die hervortretende Karte, sonst schneidet die
+                // Bildlauffläche sie oben und unten ab.
+                .padding(.vertical, Theme.focusBleed)
             }
+            .padding(.vertical, -Theme.focusBleed)
+            .focusGroup()
         }
     }
 }
@@ -213,8 +229,14 @@ struct WorkoutCard: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(16)
+        .padding(16 * Theme.scale * 0.8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .cardBackground()
+        // Etwas heller als der Hintergrund und mit feiner Kante: aus drei
+        // Metern Abstand ist eine Karte sonst kaum von der Fläche zu trennen.
+        .cardBackground(Theme.surfaceRaised)
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+        }
     }
 }

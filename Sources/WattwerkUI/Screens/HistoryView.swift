@@ -31,13 +31,14 @@ struct HistoryView: View {
                         NavigationLink(value: record) {
                             SessionRow(record: record)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(CardButtonStyle())
+                        .withoutSystemFocusEffect()
                     }
                 }
-                .padding(24)
+                .padding(Theme.pageInset)
             }
             .background(Theme.background)
-            .navigationTitle("Verlauf")
+            .sectionTitle("Verlauf")
             .navigationDestination(for: SessionRecord.self) { record in
                 SessionDetailView(model: model, record: record)
             }
@@ -95,8 +96,12 @@ struct SessionRow: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(16)
-        .cardBackground()
+        .padding(16 * Theme.scale * 0.8)
+        .cardBackground(Theme.surfaceRaised)
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+        }
     }
 
     private func statColumn(_ label: String, _ value: String) -> some View {
@@ -114,6 +119,7 @@ struct SessionRow: View {
 struct SessionDetailView: View {
     let model: AppModel
     let record: SessionRecord
+    @Environment(\.dismiss) private var dismiss
     #if !os(tvOS)
     @State private var isExporting = false
     #endif
@@ -121,6 +127,12 @@ struct SessionDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                #if os(tvOS)
+                // Ohne Navigationstitel braucht diese Seite einen sichtbaren
+                // Weg zurück - die Menütaste allein sieht man nicht.
+                topBar
+                #endif
+
                 LazyVGrid(
                     columns: [GridItem(.adaptive(minimum: 150 * Theme.scale), spacing: 16)],
                     spacing: 16
@@ -181,11 +193,33 @@ struct SessionDetailView: View {
                 ) { _ in }
                 #endif
             }
-            .padding(24)
+            .padding(Theme.pageInset)
         }
         .background(Theme.background)
-        .navigationTitle(record.workoutName)
+        .sectionTitle(record.workoutName)
     }
+
+    #if os(tvOS)
+    private var topBar: some View {
+        HStack(spacing: 28) {
+            Button {
+                dismiss()
+            } label: {
+                Label("Zurück", systemImage: "chevron.left")
+                    .font(.system(size: 22, weight: .semibold))
+            }
+            .buttonStyle(.bordered)
+
+            Text(record.workoutName)
+                .font(.system(size: 40, weight: .bold, design: .rounded))
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.bottom, 12)
+    }
+    #endif
 }
 
 /// The recorded power trace with the target overlaid.

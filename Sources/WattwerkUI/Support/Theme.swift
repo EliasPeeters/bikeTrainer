@@ -25,6 +25,26 @@ public enum Theme {
         #endif
     }
 
+    /// Abstand zum Bildschirmrand. Fernseher schneiden außen gerne etwas ab,
+    /// darum ist der Rand auf dem Apple TV deutlich großzügiger.
+    public static var pageInset: CGFloat {
+        #if os(tvOS)
+        return 60
+        #else
+        return 24
+        #endif
+    }
+
+    /// Luft um eine waagerechte Kartenreihe, damit die fokussierte Karte beim
+    /// Hervortreten nicht am Rand der Bildlauffläche abgeschnitten wird.
+    public static var focusBleed: CGFloat {
+        #if os(tvOS)
+        return 30
+        #else
+        return 4
+        #endif
+    }
+
     public static func zoneColor(_ zone: PowerZone?) -> Color {
         guard let zone else { return Color.gray.opacity(0.5) }
         switch zone {

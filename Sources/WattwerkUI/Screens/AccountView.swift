@@ -45,7 +45,7 @@ struct AccountView: View {
             .frame(maxWidth: .infinity)
         }
         .background(Theme.background)
-        .navigationTitle("Konto")
+        .sectionTitle("Konto")
         #if DEBUG
         .onAppear { serverURL = model.settings.settings.apiBaseURL }
         #endif

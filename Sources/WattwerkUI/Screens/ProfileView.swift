@@ -21,7 +21,7 @@ struct ProfileView: View {
             .frame(maxWidth: .infinity)
         }
         .background(Theme.background)
-        .navigationTitle("Profil")
+        .sectionTitle("Profil")
     }
 
     private var riderCard: some View {
