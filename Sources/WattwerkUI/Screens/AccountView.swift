@@ -28,16 +28,19 @@ struct AccountView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                // Jede Karte eine Fokus-Einheit: sonst führt von „Jetzt
+                // abgleichen“ rechts oben kein Weg zu „Konto löschen“ links
+                // unten, und der Knopf bleibt auf dem Apple TV unerreichbar.
                 if model.account.isSignedIn {
-                    signedInCard
-                    syncCard
-                    deleteCard
+                    signedInCard.focusGroup()
+                    syncCard.focusGroup()
+                    deleteCard.focusGroup()
                 } else {
-                    benefitsCard
-                    formCard
+                    benefitsCard.focusGroup()
+                    formCard.focusGroup()
                 }
                 #if DEBUG
-                serverCard
+                serverCard.focusGroup()
                 #endif
             }
             .padding(24)

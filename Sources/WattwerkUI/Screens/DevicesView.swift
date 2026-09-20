@@ -20,9 +20,9 @@ struct DevicesView: View {
                         .cardBackground(Theme.surfaceRaised)
                 }
 
-                connectedSection
-                scanSection
-                simulatorSection
+                connectedSection.focusGroup()
+                scanSection.focusGroup()
+                simulatorSection.focusGroup()
             }
             .padding(24)
         }

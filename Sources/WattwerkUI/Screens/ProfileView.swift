@@ -11,10 +11,10 @@ struct ProfileView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                riderCard
-                ftpCard
-                appCard
-                aboutCard
+                riderCard.focusGroup()
+                ftpCard.focusGroup()
+                appCard.focusGroup()
+                aboutCard.focusGroup()
             }
             .padding(24)
             .frame(maxWidth: 820 * Theme.scale)
