@@ -22,15 +22,23 @@ concurrency:
   group: deploy-vps
   cancel-in-progress: false
 
-env:
-  REMOTE_PATH: ${{ vars.VPS_PATH || '~/wattwerk' }}
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
+      - name: Zielpfad bestimmen
+        run: |
+          set -euo pipefail
+          RAW="${{ vars.VPS_PATH || 'wattwerk' }}"
+          # Eine führende Tilde wird in Anführungszeichen nicht expandiert.
+          # `cd '~/wattwerk'` legt ein Verzeichnis an, das wirklich "~" heißt -
+          # die Dateien landen dann woanders als der Rest der Auslieferung.
+          # Ohne Tilde ist der Pfad relativ zum Anmeldeverzeichnis, was hier
+          # dasselbe meint und sich gefahrlos in Anführungszeichen setzen lässt.
+          echo "REMOTE_PATH=${RAW#\~/}" >> "$GITHUB_ENV"
+
       - name: Quellcode holen
         uses: actions/checkout@v4
 
