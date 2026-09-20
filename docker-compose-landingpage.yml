@@ -1,0 +1,26 @@
+# Die Landingpage als eigener Stack:
+#
+#   docker compose -f docker-compose-landingpage.yml up --build
+#
+# Danach liegt sie auf http://localhost:8089.
+#
+# Sie braucht den API-Stack nicht, um zu starten - nur die Registrierung
+# funktioniert ohne ihn nicht. Wohin /api/* geht, steht in API_URL; der
+# Standard trifft die API aus docker-compose.yml auf dem Host-Rechner.
+
+name: wattwerk-landingpage
+
+services:
+  landingpage:
+    build:
+      context: .
+      dockerfile: DockerfileLandingpage
+    restart: unless-stopped
+    ports:
+      - "${LANDINGPAGE_PORT:-8089}:80"
+    environment:
+      API_URL: ${API_URL:-http://host.docker.internal:8088}
+    # Unter Docker Desktop ist host.docker.internal gesetzt; unter Linux muss
+    # der Name dem Gateway zugeordnet werden, sonst laeuft der Proxy ins Leere.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

@@ -1,0 +1,35 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+Package.resolved
+
+# macOS
+.DS_Store
+
+# Fastlane / misc
+*.log
+
+# Node
+node_modules/
+dist/
+.yarn/
+yarn-error.log
+npm-debug.log*
+
+# Lokale Umgebung
+.env
+.env.local

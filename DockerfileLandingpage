@@ -1,0 +1,35 @@
+# syntax=docker/dockerfile:1
+
+# Die Landingpage ist am Ende statisches HTML, JavaScript und CSS. Gebaut wird
+# mit Node, ausgeliefert von nginx - im Laufzeit-Image ist kein Node mehr drin.
+
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+COPY package.json yarn.lock ./
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/backend/package.json packages/backend/package.json
+COPY packages/landingpage/package.json packages/landingpage/package.json
+
+RUN yarn install --frozen-lockfile
+
+COPY tsconfig.base.json tsconfig.base.json
+COPY packages/shared packages/shared
+COPY packages/landingpage packages/landingpage
+
+RUN yarn workspace @wattwerk/landingpage build
+
+FROM nginx:1.27-alpine AS runtime
+
+# Wohin /api/* weitergereicht wird. Der Standard trifft die API, die auf dem
+# Host-Rechner laeuft - damit faehrt die Landingpage als eigener Stack hoch,
+# ohne das API-Netz zu kennen.
+ENV API_URL=http://host.docker.internal:8088
+
+# Das offizielle nginx-Image ersetzt Variablen in /etc/nginx/templates beim
+# Start, es wird also kein eigenes Entrypoint-Skript gebraucht.
+COPY packages/landingpage/nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY --from=builder /app/packages/landingpage/dist /usr/share/nginx/html
+
+EXPOSE 80

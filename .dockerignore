@@ -1,0 +1,17 @@
+# Swift-Seite - im Backend-Image hat sie nichts zu suchen
+.build/
+DerivedData/
+Apps/
+Sources/
+Tests/
+Package.swift
+Package.resolved
+
+node_modules/
+**/node_modules/
+**/dist/
+.git/
+.github/
+docs/
+*.md
+.DS_Store

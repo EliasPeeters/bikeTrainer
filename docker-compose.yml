@@ -1,0 +1,81 @@
+# Der API-Stack: Datenbank, Migrationen, Backend.
+#
+#   docker compose up --build
+#
+# Danach antwortet die API auf http://localhost:8088/health.
+#
+# Die Host-Ports sind ueberschreibbar (API_PORT, DB_PORT), weil 8080 und 3306
+# auf einem Entwicklungsrechner selten frei sind. Im Netz der Container bleibt
+# alles auf den Standardports.
+# Die Landingpage hat einen eigenen Stack, siehe docker-compose-landingpage.yml.
+
+# Fester Projektname, damit dieser Stack und der Landingpage-Stack sich nicht
+# gegenseitig fuer verwaiste Container halten.
+name: wattwerk
+
+services:
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    ports:
+      - "${DB_PORT:-3307}:3306"
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpassword
+      MARIADB_DATABASE: wattwerk
+      MARIADB_USER: wattwerk
+      MARIADB_PASSWORD: password
+    volumes:
+      - wattwerk_db:/var/lib/mysql
+    healthcheck:
+      # Ohne diese Pruefung startet Flyway, waehrend MariaDB noch initialisiert,
+      # und scheitert am ersten Verbindungsversuch.
+      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -u root -p$$MARIADB_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  flyway:
+    image: flyway/flyway:10-alpine
+    command: -url=jdbc:mysql://db:3306/wattwerk -schemas=wattwerk -user=root -password=rootpassword -connectRetries=60 migrate
+    volumes:
+      - ./sql:/flyway/sql
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: .
+      dockerfile: DockerfileBackend
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8088}:8080"
+    depends_on:
+      # Erst wenn die Migrationen durch sind - sonst startet der Server gegen
+      # ein Schema, das es noch nicht gibt.
+      flyway:
+        condition: service_completed_successfully
+    environment:
+      # Lokaler Stack. Fuer einen echten Betrieb: NODE_ENV=production setzen und
+      # eigene Geheimnisse mitgeben - der Server verweigert dann den Start,
+      # solange hier noch Entwicklungswerte stehen (config/env.ts).
+      NODE_ENV: development
+      PORT: 8080
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: wattwerk
+      DB_USER: wattwerk
+      DB_PASSWORD: password
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET:-dev-access-secret-nicht-fuer-produktion}
+      REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET:-dev-refresh-secret-nicht-fuer-produktion}
+      BASE_URL: ${BASE_URL:-http://localhost:8088}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  wattwerk_db:

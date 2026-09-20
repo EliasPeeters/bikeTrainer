@@ -1,0 +1,55 @@
+# syntax=docker/dockerfile:1
+
+# Mehrstufiger Bau fuer @wattwerk/backend.
+#
+# Das Laufzeit-Image bekommt nur, was der Server wirklich braucht: das
+# gebuendelte JavaScript und die Produktionsabhaengigkeiten. Quellcode,
+# TypeScript-Compiler und Testwerkzeuge bleiben in den frueheren Stufen.
+
+# ---------- Stufe 1: Abhaengigkeiten ----------
+FROM node:20-alpine AS deps
+
+WORKDIR /api
+
+# Nur die Manifeste, damit diese Schicht im Cache bleibt, solange sich die
+# Abhaengigkeiten nicht aendern. Alle Workspace-Manifeste muessen dabei sein -
+# yarn loest den Workspace sonst anders auf als die Lockfile es festhaelt.
+COPY package.json yarn.lock ./
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/backend/package.json packages/backend/package.json
+COPY packages/landingpage/package.json packages/landingpage/package.json
+
+RUN yarn install --frozen-lockfile
+
+# ---------- Stufe 2: Bauen ----------
+FROM deps AS builder
+
+COPY tsconfig.base.json tsconfig.base.json
+COPY packages/shared packages/shared
+COPY packages/backend packages/backend
+
+# esbuild loest @wattwerk/shared auf die Quelle auf, deshalb wird sie hier
+# gebraucht - im Laufzeit-Image dann nicht mehr.
+RUN yarn workspace @wattwerk/backend build
+
+# ---------- Stufe 3: Laufzeit ----------
+FROM node:20-alpine AS runtime
+
+WORKDIR /api
+
+COPY package.json yarn.lock ./
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/backend/package.json packages/backend/package.json
+COPY packages/landingpage/package.json packages/landingpage/package.json
+
+# NODE_ENV nur fuer diesen Befehl, nicht als ENV: sonst stuende die Variable
+# auch zur Laufzeit auf "production", und der lokale Stack koennte sie nicht
+# mehr auf "development" setzen.
+RUN NODE_ENV=production yarn install --frozen-lockfile && yarn cache clean
+
+COPY --from=builder /api/packages/backend/dist packages/backend/dist
+
+USER node
+EXPOSE 8080
+
+CMD ["node", "packages/backend/dist/index.js"]

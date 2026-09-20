@@ -1,0 +1,33 @@
+{
+  "name": "wattwerk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Wattwerk - Indoor-Radtraining: Apps, API und Landingpage",
+  "workspaces": {
+    "packages": [
+      "packages/*"
+    ]
+  },
+  "scripts": {
+    "shared:compile": "yarn workspace @wattwerk/shared compile",
+    "backend:start": "yarn workspace @wattwerk/backend start",
+    "backend:typecheck": "yarn workspace @wattwerk/backend typecheck",
+    "backend:test": "yarn workspace @wattwerk/backend test",
+    "backend:test:unit": "yarn workspace @wattwerk/backend test:unit",
+    "backend:test:integration": "yarn workspace @wattwerk/backend test:integration",
+    "landingpage:dev": "yarn workspace @wattwerk/landingpage dev",
+    "landingpage:build": "yarn workspace @wattwerk/landingpage build",
+    "typecheck": "yarn shared:compile && yarn backend:typecheck && yarn workspace @wattwerk/landingpage typecheck",
+    "docker:db": "docker compose -f docker-compose-db-only.yml up",
+    "docker:api": "docker compose up --build",
+    "docker:landingpage": "docker compose -f docker-compose-landingpage.yml up --build"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "resolutions": {
+    "@types/express": "^4.17.21",
+    "@types/express-serve-static-core": "^4.19.6",
+    "@types/node": "^22.10.2"
+  }
+}

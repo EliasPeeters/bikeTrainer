@@ -1,0 +1,43 @@
+# Nur Datenbank und Migrationen - fuer die Entwicklung am Backend:
+#
+#   docker compose -f docker-compose-db-only.yml up -d
+#   yarn backend:start
+#
+# Das Backend laeuft dann lokal mit ts-node und findet die Datenbank ueber die
+# Standardwerte in packages/backend/src/config/env.ts (localhost:3307).
+
+# Bewusst derselbe Projektname wie der volle Stack: es ist dieselbe Datenbank
+# und dasselbe Volume, nur ohne den API-Container.
+name: wattwerk
+
+services:
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    ports:
+      - "${DB_PORT:-3307}:3306"
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpassword
+      MARIADB_DATABASE: wattwerk
+      MARIADB_USER: wattwerk
+      MARIADB_PASSWORD: password
+    volumes:
+      - wattwerk_db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -u root -p$$MARIADB_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  flyway:
+    image: flyway/flyway:10-alpine
+    command: -url=jdbc:mysql://db:3306/wattwerk -schemas=wattwerk -user=root -password=rootpassword -connectRetries=60 migrate
+    volumes:
+      - ./sql:/flyway/sql
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  wattwerk_db:
