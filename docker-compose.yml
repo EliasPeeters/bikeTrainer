@@ -70,6 +70,12 @@ services:
       ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET:-dev-access-secret-nicht-fuer-produktion}
       REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET:-dev-refresh-secret-nicht-fuer-produktion}
       BASE_URL: ${BASE_URL:-http://localhost:8088}
+      # Beim Ausprobieren legt man schnell ein halbes Dutzend Konten an, und
+      # hinter Docker sehen alle Anfragen wie dieselbe IP aus. Der Standard aus
+      # config/env.ts (fünf pro Stunde) ist für den Betrieb gedacht, nicht für
+      # einen Entwicklungsrechner.
+      REGISTER_RATE_LIMIT: ${REGISTER_RATE_LIMIT:-100}
+      LOGIN_RATE_LIMIT: ${LOGIN_RATE_LIMIT:-100}
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health > /dev/null || exit 1"]
       interval: 15s

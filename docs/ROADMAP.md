@@ -20,17 +20,23 @@ ob die Werte plausibel sind. Alles Weitere hängt davon ab.
 * **iOS-/iPadOS-Target.** Ein Target, `WattwerkUI` verlinken, fertig. Das iPad
   wäre auch der bequemere Ort für den Editor.
 
-## Backend und Landingpage
+## Konto, Abgleich und Portal
 
-* **Die App an die API hängen.** Beide Seiten stehen, dazwischen fehlt der
-  Client: anmelden, Fahrerprofil abgleichen, gefahrene Einheiten hochladen.
-  `packages/shared` hat die Typen dafür schon.
-* **Mailversand.** Ohne ihn bleibt die Bestätigung ein Log-Eintrag.
-* **Programme synchronisieren.** Heute liegt die Bibliothek nur auf dem Gerät;
-  am Mac gebaute Programme tauchen auf dem Apple TV nicht auf.
-* **Passwort vergessen.** Fehlt komplett.
+* **Tokens in den Schlüsselbund.** Sie liegen heute im normalen App-Speicher –
+  auf dem Mac in der Sandbox, auf dem Apple TV in `UserDefaults`. Für den
+  Anfang tragbar, auf Dauer gehört so etwas in den Keychain.
+* **Passwort vergessen.** Fehlt komplett, und ohne Mailversand geht es auch
+  nicht.
+* **Sammlungen in der App bearbeiten.** Sie werden dort angezeigt und lassen
+  sich fahren, angelegt und gefüllt werden sie bisher nur im Web-Portal.
+* **Grabsteine für gelöschte Programme.** Der Abgleich löst den Normalfall über
+  `syncedAt`, aber zwei Geräte, die gleichzeitig offline etwas ändern, brauchen
+  mehr als „wer zuletzt schreibt".
 * **Ratenbegrenzung in einen gemeinsamen Speicher**, sobald mehr als eine
   Instanz läuft – heute zählt jeder Prozess für sich.
+* **Echte Empfehlungen.** Die Reihen sind heute Heuristiken. Mit etwas
+  Nutzungsverlauf ließe sich mehr daraus machen – etwa Programme, die zur
+  aktuellen Wochenbelastung passen.
 
 ## Später
 

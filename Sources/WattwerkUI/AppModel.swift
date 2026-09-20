@@ -17,6 +17,7 @@ public final class AppModel {
         case devices
         case history
         case profile
+        case account
 
         public var id: String { rawValue }
 
@@ -26,6 +27,7 @@ public final class AppModel {
             case .devices: return "Geräte"
             case .history: return "Verlauf"
             case .profile: return "Profil"
+            case .account: return "Konto"
             }
         }
 
@@ -35,6 +37,7 @@ public final class AppModel {
             case .devices: return "antenna.radiowaves.left.and.right"
             case .history: return "calendar"
             case .profile: return "person.crop.circle"
+            case .account: return "icloud"
             }
         }
     }
@@ -45,6 +48,8 @@ public final class AppModel {
     public let bluetooth: BluetoothManager
     public let simulator = SimulatedTrainer()
     public let engine: WorkoutEngine
+    public let account: AccountStore
+    public let sync: SyncService
 
     public var section: Section = .training
     /// Set while the ride screen is up (full screen on both platforms).
@@ -56,15 +61,38 @@ public final class AppModel {
     @ObservationIgnored private var pendingWorkout: Workout?
     @ObservationIgnored private let displayBlocker = DisplaySleepBlocker()
 
+    /// Die eine Instanz der App.
+    ///
+    /// `@State private var model = AppModel()` sieht richtig aus, wertet den
+    /// Ausdruck aber bei *jedem* Aufbau der View-Struktur aus - SwiftUI
+    /// verwirft das Ergebnis dann zwar, aber erzeugt wurde es trotzdem: samt
+    /// CBCentralManager und einem Abgleich-Task. Im Log des Servers sah man das
+    /// als drei Anmeldungen hintereinander. Ein `static let` wird genau einmal
+    /// ausgewertet.
+    @MainActor public static let shared = AppModel()
+
     public init(storage: (any KeyValueStorage)? = nil) {
         let storage = storage ?? StorageFactory.makeDefault()
         let settings = SettingsStore(storage: storage)
         self.settings = settings
-        library = WorkoutLibrary(storage: storage)
-        sessions = SessionStore(storage: storage)
         bluetooth = BluetoothManager()
         engine = WorkoutEngine(ftp: settings.rider.ftp)
+        let library = WorkoutLibrary(storage: storage)
+        let sessions = SessionStore(storage: storage)
+        account = AccountStore(
+            storage: storage,
+            baseURL: APIEnvironment.url(from: settings.settings.apiBaseURL)
+        )
+        sync = SyncService(account: account, library: library, sessions: sessions, settings: settings)
+        self.library = library
+        self.sessions = sessions
         wire()
+        // Beim Start einmal abgleichen, wenn ein Konto hinterlegt ist. Schlägt
+        // es fehl, bleibt die App vollständig benutzbar - nur eben lokal.
+        Task { [weak self] in
+            await self?.account.refreshProfile()
+            await self?.sync.syncAll()
+        }
     }
 
     private func wire() {
@@ -177,6 +205,12 @@ public final class AppModel {
     public func finishRide(save: Bool) {
         if save, let record = engine.lastRecord {
             sessions.add(record)
+            // Hochladen, sobald es geht. Klappt es nicht, bleibt die Einheit
+            // als ausstehend liegen und geht beim nächsten Abgleich mit.
+            Task { [weak self] in
+                await self?.sync.uploadPendingSessions()
+                await self?.sync.refreshDiscovery()
+            }
         }
         engine.reset()
         countdownTask?.cancel()
@@ -195,11 +229,80 @@ public final class AppModel {
     // MARK: Workouts
 
     public func save(_ workout: Workout) {
-        library.save(workout)
+        var copy = workout
+        copy.updatedAt = Date()
+        library.save(copy)
+        scheduleSync()
     }
 
     public func delete(_ workout: Workout) {
         library.delete(id: workout.id)
+        if account.isSignedIn, workout.ownerUserID != nil {
+            Task { [weak self] in
+                try? await self?.account.client.deleteWorkout(id: workout.id.uuidString.lowercased())
+                await self?.sync.refreshDiscovery()
+            }
+        }
+    }
+
+    private func scheduleSync() {
+        guard account.isSignedIn else { return }
+        Task { [weak self] in await self?.sync.syncAll() }
+    }
+
+    // MARK: Bibliothek
+
+    /// Die Reihen der Bibliothek.
+    ///
+    /// Angemeldet und online stellt der Server sie zusammen - dann sehen App und
+    /// Web-Portal dasselbe. Ohne Konto oder ohne Netz werden sie lokal gebaut,
+    /// damit die Bibliothek nie leer dasteht.
+    public var libraryRows: [LibraryRow] {
+        if let discovery = sync.discovery, !discovery.rows.isEmpty {
+            return discovery.rows.map { row in
+                LibraryRow(
+                    id: row.key,
+                    title: row.title,
+                    subtitle: row.subtitle,
+                    workouts: row.workouts.map { $0.makeWorkout() }
+                )
+            }
+        }
+        return localLibraryRows
+    }
+
+    public var localLibraryRows: [LibraryRow] {
+        var rows: [LibraryRow] = []
+        let own = library.userWorkouts.sorted { $0.updatedAt > $1.updatedAt }
+        if !own.isEmpty {
+            rows.append(LibraryRow(id: "own", title: "Deine Programme", subtitle: nil, workouts: own))
+        }
+        rows.append(
+            LibraryRow(
+                id: "catalog",
+                title: "Aus dem Katalog",
+                subtitle: "Die mitgelieferten Programme",
+                workouts: library.builtInWorkouts
+            )
+        )
+        let all = library.allWorkouts
+        let short = all.filter { $0.duration <= 45 * 60 }
+        if !short.isEmpty {
+            rows.append(
+                LibraryRow(id: "short", title: "Kurz und knackig", subtitle: "Unter 45 Minuten", workouts: short)
+            )
+        }
+        let long = all.filter { $0.duration >= 60 * 60 }
+        if !long.isEmpty {
+            rows.append(
+                LibraryRow(id: "long", title: "Lange Einheiten", subtitle: "Ab einer Stunde", workouts: long)
+            )
+        }
+        return rows
+    }
+
+    public var collections: [CollectionPayload] {
+        sync.discovery?.collections ?? []
     }
 
     /// Ramp test helper: turn the best minute of the last ride into a new FTP.
@@ -252,4 +355,12 @@ final class DisplaySleepBlocker {
         UIApplication.shared.isIdleTimerDisabled = false
         #endif
     }
+}
+
+/// Eine Reihe in der Bibliothek - ob vom Server oder lokal gebaut.
+public struct LibraryRow: Identifiable, Hashable, Sendable {
+    public let id: String
+    public let title: String
+    public let subtitle: String?
+    public let workouts: [Workout]
 }

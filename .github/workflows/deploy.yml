@@ -1,0 +1,174 @@
+# Bringt Backend, Datenbank und Landingpage auf den VPS.
+#
+# Von Hand auszulösen: Actions -> "Auf den VPS ausliefern" -> Run workflow.
+# Es läuft absichtlich nicht bei jedem Push: wann etwas live geht, ist eine
+# Entscheidung, kein Nebeneffekt vom Committen.
+#
+# Was der Job braucht, steht in docs/DEPLOYMENT.md.
+
+name: Auf den VPS ausliefern
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_tests:
+        description: "Vorher Typprüfung und Unit-Tests laufen lassen"
+        type: boolean
+        default: true
+
+concurrency:
+  # Zwei gleichzeitige Auslieferungen würden sich auf dem Server ins Gehege
+  # kommen - die zweite wartet.
+  group: deploy-vps
+  cancel-in-progress: false
+
+env:
+  REMOTE_PATH: ${{ vars.VPS_PATH || '~/wattwerk' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Quellcode holen
+        uses: actions/checkout@v4
+
+      - name: Node einrichten
+        if: ${{ inputs.run_tests }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - name: Abhängigkeiten installieren
+        if: ${{ inputs.run_tests }}
+        run: yarn install --frozen-lockfile
+
+      - name: Typprüfung
+        if: ${{ inputs.run_tests }}
+        run: yarn typecheck
+
+      - name: Unit-Tests
+        # Die Integrationstests brauchen eine Datenbank und laufen hier nicht -
+        # dafür prüft der Schritt ganz unten die frisch ausgelieferte API.
+        if: ${{ inputs.run_tests }}
+        run: yarn backend:test:unit
+
+      - name: SSH vorbereiten
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ vars.VPS_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          if [ -n "${KNOWN_HOSTS:-}" ]; then
+            # Angeheftet: der Schlüssel des Servers steht als Secret fest.
+            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            # Sonst beim ersten Kontakt übernehmen. Funktioniert, ist aber
+            # angreifbar - siehe docs/DEPLOYMENT.md.
+            ssh-keyscan -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          fi
+          chmod 600 ~/.ssh/known_hosts
+          cat >> ~/.ssh/config <<CONFIG
+          Host vps
+            HostName $VPS_HOST
+            User ${{ secrets.VPS_USER }}
+            Port $VPS_PORT
+            IdentityFile ~/.ssh/id_deploy
+            IdentitiesOnly yes
+          CONFIG
+
+      - name: Dateien übertragen
+        run: |
+          set -euo pipefail
+          ssh vps "mkdir -p '${{ env.REMOTE_PATH }}'"
+          # Nur was der Server zum Bauen braucht. Kein node_modules, keine
+          # Swift-Seite, keine Quellgrafiken - das spart Minuten je Auslieferung.
+          rsync -az --delete \
+            --exclude 'node_modules' \
+            --exclude '.git' \
+            --exclude 'dist' \
+            --exclude '.build' \
+            packages sql \
+            package.json yarn.lock tsconfig.base.json \
+            DockerfileBackend DockerfileLandingpage .dockerignore \
+            docker-compose.prod.yml \
+            vps:"${{ env.REMOTE_PATH }}/"
+
+      - name: Konfiguration schreiben
+        env:
+          DB_ROOT_PASSWORD: ${{ secrets.DB_ROOT_PASSWORD }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          ACCESS_TOKEN_SECRET: ${{ secrets.ACCESS_TOKEN_SECRET }}
+          REFRESH_TOKEN_SECRET: ${{ secrets.REFRESH_TOKEN_SECRET }}
+          BASE_URL: ${{ vars.BASE_URL || 'https://api.wattwerk.eliaspeeters.de' }}
+          CORS_ORIGINS: ${{ vars.CORS_ORIGINS || 'https://wattwerk.eliaspeeters.de' }}
+          PROXY_NETWORK: ${{ vars.PROXY_NETWORK || 'wattwerk-proxy' }}
+          API_PORT: ${{ vars.API_PORT || '8088' }}
+          LANDINGPAGE_PORT: ${{ vars.LANDINGPAGE_PORT || '8089' }}
+        run: |
+          set -euo pipefail
+          # Über die Standardeingabe, damit die Geheimnisse nicht in der
+          # Prozessliste des Servers auftauchen.
+          ssh vps "cat > '${{ env.REMOTE_PATH }}/.env' && chmod 600 '${{ env.REMOTE_PATH }}/.env'" <<ENVFILE
+          DB_ROOT_PASSWORD=$DB_ROOT_PASSWORD
+          DB_PASSWORD=$DB_PASSWORD
+          ACCESS_TOKEN_SECRET=$ACCESS_TOKEN_SECRET
+          REFRESH_TOKEN_SECRET=$REFRESH_TOKEN_SECRET
+          BASE_URL=$BASE_URL
+          CORS_ORIGINS=$CORS_ORIGINS
+          PROXY_NETWORK=$PROXY_NETWORK
+          API_PORT=$API_PORT
+          LANDINGPAGE_PORT=$LANDINGPAGE_PORT
+          ENVFILE
+
+      - name: Proxy-Netz sicherstellen
+        env:
+          PROXY_NETWORK: ${{ vars.PROXY_NETWORK || 'wattwerk-proxy' }}
+        run: |
+          # Anlegen, falls es noch nicht existiert. Den Proxy Manager daran
+          # anzuschließen bleibt ein einmaliger Schritt von Hand.
+          ssh vps "docker network inspect '$PROXY_NETWORK' >/dev/null 2>&1 || docker network create '$PROXY_NETWORK'"
+
+      - name: Stack bauen und starten
+        run: |
+          set -euo pipefail
+          ssh vps "cd '${{ env.REMOTE_PATH }}' && docker compose -f docker-compose.prod.yml up -d --build --remove-orphans"
+
+      - name: Gesundheitsprüfung
+        env:
+          API_PORT: ${{ vars.API_PORT || '8088' }}
+          LANDINGPAGE_PORT: ${{ vars.LANDINGPAGE_PORT || '8089' }}
+        run: |
+          set -euo pipefail
+          # Der Container meldet sich erst nach den Migrationen, deshalb mit Geduld.
+          ssh vps "for i in \$(seq 1 30); do \
+            if curl -fsS http://127.0.0.1:$API_PORT/health > /tmp/wattwerk-health; then break; fi; \
+            sleep 4; \
+          done; cat /tmp/wattwerk-health"
+          echo
+          ssh vps "curl -fsS -o /dev/null -w 'Landingpage: %{http_code}\n' http://127.0.0.1:$LANDINGPAGE_PORT/"
+          ssh vps "curl -fsS -o /dev/null -w 'API über den Seiten-Proxy: %{http_code}\n' http://127.0.0.1:$LANDINGPAGE_PORT/api/health"
+
+      - name: Alte Abbilder aufräumen
+        if: always()
+        run: ssh vps "docker image prune -f" || true
+
+      - name: Zusammenfassung
+        if: always()
+        run: |
+          {
+            echo "### Wattwerk ausgeliefert"
+            echo
+            echo "| Dienst | Container | Port im Proxy |"
+            echo "|---|---|---|"
+            echo "| API | \`wattwerk-backend\` | 8080 |"
+            echo "| Landingpage | \`wattwerk-landingpage\` | 80 |"
+          } >> "$GITHUB_STEP_SUMMARY"

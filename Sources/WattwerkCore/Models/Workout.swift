@@ -10,7 +10,22 @@ public struct Workout: Identifiable, Hashable, Sendable, Codable {
     /// `true` for the workouts that ship with the app - those cannot be deleted,
     /// only duplicated into the user's own library.
     public var isBuiltIn: Bool
+    /// Privat, solange der Fahrer es nicht freigibt.
+    public var visibility: WorkoutVisibility
+    /// Gesetzt, sobald das Programm auf dem Server liegt.
+    public var ownerUserID: Int?
+    /// Anzeigename des Urhebers bei fremden, öffentlichen Programmen.
+    public var ownerName: String?
     public var createdAt: Date
+    /// Entscheidet beim Abgleich, welche Fassung gewinnt.
+    public var updatedAt: Date
+    /// Wann dieses Programm zuletzt mit dem Server abgeglichen wurde.
+    ///
+    /// Trägt die Entscheidung, was hochgeschoben wird: nur was neu ist
+    /// (`nil`) oder seither geändert wurde. Ohne diese Unterscheidung würde ein
+    /// im Web gelöschtes Programm vom nächsten Gerät wieder hochgeladen und
+    /// wäre nicht totzukriegen.
+    public var syncedAt: Date?
 
     public init(
         id: UUID = UUID(),
@@ -19,7 +34,12 @@ public struct Workout: Identifiable, Hashable, Sendable, Codable {
         tags: [String] = [],
         segments: [WorkoutSegment],
         isBuiltIn: Bool = false,
-        createdAt: Date = Date()
+        visibility: WorkoutVisibility = .private,
+        ownerUserID: Int? = nil,
+        ownerName: String? = nil,
+        createdAt: Date = Date(),
+        updatedAt: Date = Date(),
+        syncedAt: Date? = nil
     ) {
         self.id = id
         self.name = name
@@ -27,7 +47,40 @@ public struct Workout: Identifiable, Hashable, Sendable, Codable {
         self.tags = tags
         self.segments = segments
         self.isBuiltIn = isBuiltIn
+        self.visibility = visibility
+        self.ownerUserID = ownerUserID
+        self.ownerName = ownerName
         self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.syncedAt = syncedAt
+    }
+
+    /// Nachsichtiges Dekodieren.
+    ///
+    /// Programme, die eine frühere Fassung der App gespeichert hat, kennen
+    /// `visibility` und `updatedAt` nicht. Ohne Standardwerte schlägt das
+    /// Dekodieren der gesamten Bibliothek fehl - und die Einheiten, die jemand
+    /// selbst gebaut hat, wären nach einem Update weg.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        summary = try container.decodeIfPresent(String.self, forKey: .summary) ?? ""
+        tags = try container.decodeIfPresent([String].self, forKey: .tags) ?? []
+        segments = try container.decode([WorkoutSegment].self, forKey: .segments)
+        isBuiltIn = try container.decodeIfPresent(Bool.self, forKey: .isBuiltIn) ?? false
+        visibility = try container.decodeIfPresent(WorkoutVisibility.self, forKey: .visibility) ?? .private
+        ownerUserID = try container.decodeIfPresent(Int.self, forKey: .ownerUserID)
+        ownerName = try container.decodeIfPresent(String.self, forKey: .ownerName)
+        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
+        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? createdAt
+        syncedAt = try container.decodeIfPresent(Date.self, forKey: .syncedAt)
+    }
+
+    /// `true`, wenn die lokale Fassung noch nicht beim Server ist.
+    public var needsUpload: Bool {
+        guard let syncedAt else { return true }
+        return updatedAt > syncedAt
     }
 
     public var duration: TimeInterval {
@@ -118,7 +171,10 @@ public struct Workout: Identifiable, Hashable, Sendable, Codable {
                 return copy
             },
             isBuiltIn: false,
-            createdAt: Date()
+            // Eine Kopie gehört dem, der sie macht, und ist erst einmal privat.
+            visibility: .private,
+            createdAt: Date(),
+            updatedAt: Date()
         )
     }
 }

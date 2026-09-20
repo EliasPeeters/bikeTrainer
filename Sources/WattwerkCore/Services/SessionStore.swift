@@ -35,6 +35,18 @@ public final class SessionStore {
         persist()
     }
 
+    /// Alles, was noch nicht beim Server ist - älteste zuerst, damit der
+    /// Verlauf in der richtigen Reihenfolge ankommt.
+    public var pendingUploads: [SessionRecord] {
+        sessions.filter { $0.uploadedAt == nil }.sorted { $0.startedAt < $1.startedAt }
+    }
+
+    public func markUploaded(id: UUID, at date: Date = Date()) {
+        guard let index = sessions.firstIndex(where: { $0.id == id }) else { return }
+        sessions[index].uploadedAt = date
+        persist()
+    }
+
     public func delete(id: UUID) {
         sessions.removeAll { $0.id == id }
         persist()

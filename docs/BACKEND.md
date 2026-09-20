@@ -50,14 +50,61 @@ statt im Handler auf `undefined` zu prüfen.
 | POST | `/auth/register` | – | Konto anlegen, liefert Tokens |
 | POST | `/auth/login` | – | Anmelden |
 | POST | `/auth/refresh` | Token im Körper | Neue Tokens |
-| POST | `/auth/verifyEmail` | – | Adresse bestätigen (für Clients) |
-| GET | `/auth/verify/:token` | – | Derselbe Weg als Seite, für den Link aus der Mail |
 | GET | `/me` | ja | Fahrerprofil lesen |
 | PUT | `/me` | ja | FTP, Puls, Gewicht, Name ändern |
 | POST | `/sessions` | ja | Gefahrene Einheit hochladen |
 | GET | `/sessions` | ja | Verlauf plus Wochenbelastung |
 | DELETE | `/sessions/:id` | ja | Einheit löschen |
+| GET | `/workouts` | ja | Eigene Programme |
+| POST | `/workouts` | ja | Anlegen oder ersetzen (Kennung vom Client) |
+| PUT | `/workouts/:id` | ja | Ändern |
+| DELETE | `/workouts/:id` | ja | Löschen |
+| GET | `/workouts/:id` | – | Eigenes, öffentliches oder mitgeliefertes Programm |
+| GET | `/workouts/public` | – | Suchen und stöbern (`query`, `tag`, Dauer) |
+| POST | `/workouts/sync` | ja | Schwung lokaler Programme hochschieben |
+| GET | `/collections` | ja | Eigene Ordner samt Inhalt |
+| POST/PUT | `/collections[/:id]` | ja | Anlegen und ändern |
+| DELETE | `/collections/:id` | ja | Löschen |
+| POST | `/collections/:id/items` | ja | Programm hineinlegen |
+| DELETE | `/collections/:id/items/:workoutID` | ja | Wieder herausnehmen |
+| GET | `/discover` | optional | Die Reihen der Bibliothek |
 | GET | `/health` | – | Für Compose, Kubernetes, Monitoring |
+
+### Programme, Sichtbarkeit und Sammlungen
+
+Ein Programm ist **privat, bis sein Urheber etwas anderes sagt**. Freigeben ist
+eine Entscheidung, kein Standard.
+
+* Fremde private Programme antworten mit **404, nicht 403** – alles andere
+  verriete, dass es sie gibt.
+* Der mitgelieferte Katalog gehört niemandem (`ownerUserID IS NULL`), ist immer
+  öffentlich und lässt sich nicht ändern oder löschen. Wer ihn anpassen will,
+  legt eine Kopie an.
+* In eine Sammlung darf nur, was man auch sehen darf – sonst wäre sie ein Weg
+  an fremde private Programme.
+* Dauer und Belastung rechnet **der Server**, nicht der Client. Sonst hinge die
+  Sortierung der Übersicht daran, was jemand mitschickt.
+
+Eine **Sammlung** ist Ordner und Playlist in einem. Zwei Begriffe für dasselbe
+wären zwei Datenmodelle, zwei Oberflächen und die Frage, warum ein Programm
+nicht in beidem liegen darf. Sie hat eine Reihenfolge; wer sie als Ordner
+benutzt, ignoriert sie.
+
+### Die Reihen der Bibliothek
+
+`/discover` liefert fertige Reihen – der Server entscheidet, welche es gibt und
+wie sie heißen. App und Web-Portal zeichnen nur, was kommt; damit lässt sich an
+den Empfehlungen drehen, ohne zwei Clients neu auszuliefern, und beide zeigen
+garantiert dasselbe.
+
+Es sind Heuristiken, keine gelernten Empfehlungen: es gibt noch keine
+Nutzungsdaten, aus denen sich etwas lernen ließe. „Top-Tipps" zählt schlicht,
+wie oft ein Programm gefahren wurde. Leere Reihen fallen weg – eine Überschrift
+ohne Inhalt ist kein Angebot.
+
+Angemeldet kommen „Zuletzt gefahren" und „Deine Programme" dazu. Ohne Konto
+funktioniert der Endpunkt trotzdem, damit die Landingpage den Katalog zeigen
+kann, bevor sich jemand registriert.
 
 Fehler kommen immer in derselben Form:
 
@@ -89,12 +136,14 @@ Weitere Entscheidungen, die im Code kommentiert sind:
 * **Passwörter über 72 Byte werden abgelehnt**, statt sie von bcrypt
   stillschweigend abschneiden zu lassen.
 
-Mailversand hängt noch nicht dran. Der Bestätigungslink landet außerhalb von
-Produktion im Log, sodass der Weg lokal vollständig durchspielbar ist.
+**Keine Mailbestätigung.** Es gibt keinen Mailversand, und Spalten, die nie
+einen Wert bekommen, laden nur dazu ein, sich auf sie zu verlassen – die
+Bestätigung ist mit Migration V2 wieder ausgebaut worden. Registrieren heißt
+E-Mail und Passwort, mehr nicht.
 
 ## Datenbank
 
-Zwei Tabellen, `sql/V1__create_initial.sql`:
+`sql/V1__create_initial.sql` und `sql/V2__accounts_workouts_collections.sql`:
 
 * **`user`** – Zugangsdaten plus Fahrerprofil (FTP, Maximalpuls, Ruhepuls,
   Gewicht). Dieselben Felder wie `RiderProfile` in der App, damit es keine
@@ -104,7 +153,18 @@ Zwei Tabellen, `sql/V1__create_initial.sql`:
   App schickt eine Einheit nach einem Netzfehler erneut, und das darf den
   Verlauf nicht verdoppeln.
 
-Änderungen kommen als neue Datei (`V1.1__…`); Flyway prüft die Prüfsummen der
+* **`workout`** – Segmente und Schlagworte als JSON. Die Datenbank muss nie in
+  sie hineinsehen, und eine eigene Tabelle je Block wäre ein Join pro Kachel in
+  einer Übersicht, die dreißig Programme gleichzeitig zeigt.
+* **`collection`** und **`collectionItem`** – Ordner und ihr Inhalt, mit
+  Reihenfolge.
+
+Der mitgelieferte Katalog wird in V2 **aus `BuiltInWorkouts` in WattwerkCore
+erzeugt** und mit denselben Kennungen eingespielt. Lädt jemand seine Bibliothek
+herunter, entstehen deshalb keine Dubletten neben dem lokalen Katalog – ein
+Swift-Test vergleicht beide Seiten Feld für Feld.
+
+Änderungen kommen als neue Datei (`V2.1__…`); Flyway prüft die Prüfsummen der
 bereits eingespielten.
 
 Zwei Dinge, die beim Bauen aufgefallen sind und im Code stehen:
@@ -116,10 +176,26 @@ Zwei Dinge, die beim Bauen aufgefallen sind und im Code stehen:
   `undefined`, nicht `null`. `emailVerifiedAt !== null` war damit immer wahr und
   hätte jedes neue Konto als bestätigt ausgewiesen.
 
-## Landingpage
+## Landingpage und Web-Portal
 
 Vite, React, TypeScript; gebaut zu statischen Dateien, ausgeliefert von nginx.
 Im Laufzeit-Image ist kein Node mehr.
+
+Zwei Teile in einer Anwendung:
+
+* **`/`** – die Seite für Leute ohne Konto, mit Registrierung und Anmeldung.
+* **`/app/…`** – das Portal: Übersicht mit Wochenbelastung und letzten
+  Einheiten, Bibliothek mit denselben Reihen wie die App, Programm-Editor,
+  Ordner, Verlauf und Profil.
+
+nginx liefert für jede Route `index.html` aus (`try_files … /index.html`), sonst
+endete ein Neuladen auf `/app/bibliothek` im 404 des Webservers statt im Router.
+
+Die Tokens liegen in `localStorage`, jeder Zugriff darauf in `try/catch`: im
+privaten Modus mancher Browser wirft es, statt nur leer zu sein. Läuft das
+Zugangstoken ab, frischt der Client **einmal** auf und wiederholt den Aufruf –
+scheitert auch der zweite Versuch, ist die Sitzung wirklich vorbei, und eine
+Schleife aus Auffrischen und Scheitern würde nur den Server beschäftigen.
 
 Alle Aufrufe gehen relativ an `/api`. nginx leitet das an `API_URL` weiter, im
 Entwicklungsmodus macht der Vite-Proxy dasselbe. Dadurch steht keine Adresse im
@@ -128,6 +204,24 @@ gegen jede API.
 
 nginx reicht `X-Forwarded-For` durch. Ohne das zählte die Ratenbegrenzung alle
 Registrierungen auf die IP des Proxys – ein Test hält das fest.
+
+## Die Apps ans Backend hängen
+
+Zwei Dinge auf Apple-Seite, ohne die keine Verbindung zustande kommt – beide
+scheitern lautlos und sehen von innen aus, als wäre der Server aus:
+
+* **`com.apple.security.network.client`** in `Apps/Mac/Wattwerk.entitlements`.
+  Die Mac-App läuft in der Sandbox; ohne dieses Recht blockiert macOS jede
+  ausgehende Verbindung.
+* **`NSAllowsLocalNetworking`** in `Apps/Config/{Mac,TV}-Info.plist`. App
+  Transport Security verbietet unverschlüsseltes HTTP. Die Ausnahme gilt nur
+  für loopback, `*.local` und private Adressbereiche – genau der Fall „API auf
+  dem Mac, Apple TV im selben Netz". Alles im Internet muss weiterhin HTTPS sein.
+
+Die Serveradresse steht in `APIEnvironment.defaultBaseURL`. In Debug-Bauten
+lässt sie sich unter *Konto* umstellen; in einem Auslieferbau ist das Feld nicht
+da, weil es dort kein Werkzeug wäre, sondern eine Möglichkeit, die App
+kaputtzukonfigurieren.
 
 ## Betrieb
 

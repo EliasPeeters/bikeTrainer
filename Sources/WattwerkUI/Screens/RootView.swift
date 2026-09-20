@@ -6,8 +6,11 @@ import WattwerkCore
 public struct RootView: View {
     @State private var model: AppModel
 
-    public init(model: AppModel = AppModel()) {
-        _model = State(initialValue: model)
+    /// `AppModel.shared` als Standard statt `AppModel()`: ein Standardargument
+    /// wird bei jedem Aufruf ausgewertet, und dieser hier würde eine komplette
+    /// zweite App bauen.
+    public init(model: AppModel? = nil) {
+        _model = State(initialValue: model ?? AppModel.shared)
     }
 
     public var body: some View {
@@ -61,6 +64,7 @@ public struct RootView: View {
         case .devices: DevicesView(model: model)
         case .history: HistoryView(model: model)
         case .profile: ProfileView(model: model)
+        case .account: AccountView(model: model)
         }
     }
 }
@@ -78,6 +82,12 @@ struct SensorSummaryBar: View {
                     : (model.canControlTrainer ? "Steuerbar" : "Nur Messung"),
                 color: model.hasPowerSource ? Theme.positive : .secondary,
                 systemImage: "bicycle"
+            )
+            StatusPill(
+                title: model.account.isSignedIn ? "Angemeldet" : "Ohne Konto",
+                subtitle: model.account.user?.email ?? "Alles bleibt lokal",
+                color: model.account.isSignedIn ? Theme.positive : .secondary,
+                systemImage: model.account.isSignedIn ? "checkmark.icloud" : "icloud.slash"
             )
             StatusPill(
                 title: model.heartRateName ?? "Kein Pulsgurt",

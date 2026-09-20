@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  App Transport Security verbietet unverschlüsseltes HTTP. Für den lokalen
+	  Betrieb - API auf demselben Rechner oder auf einem Mac im selben Netz -
+	  braucht es genau diese Ausnahme. Sie gilt nur für loopback, *.local und
+	  Adressen aus den privaten Bereichen; alles im Internet muss weiterhin
+	  HTTPS sein.
+	-->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+</dict>
+</plist>

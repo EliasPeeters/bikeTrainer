@@ -1,0 +1,118 @@
+# Der Stack auf dem VPS.
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Nichts davon ist direkt aus dem Internet erreichbar. Backend und Landingpage
+# hängen zusätzlich im Netz `proxy`, über das der Nginx Proxy Manager sie
+# anspricht; die 127.0.0.1-Ports daneben sind nur für Diagnose auf dem Server
+# selbst (curl, Logs). Die Datenbank hat gar keinen Port nach außen.
+#
+# Einmalig auf dem Server, bevor das hier startet:
+#   docker network create wattwerk-proxy
+#   docker network connect wattwerk-proxy <container-des-proxy-managers>
+# Dauerhaft besser: das Netz in die Compose-Datei des Proxy Managers eintragen.
+
+name: wattwerk
+
+services:
+  db:
+    image: mariadb:11.4
+    container_name: wattwerk-db
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD fehlt}
+      MARIADB_DATABASE: ${DB_NAME:-wattwerk}
+      MARIADB_USER: ${DB_USER:-wattwerk}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD fehlt}
+    volumes:
+      - wattwerk_db:/var/lib/mysql
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -u root -p$$MARIADB_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  flyway:
+    image: flyway/flyway:10-alpine
+    container_name: wattwerk-flyway
+    command: >-
+      -url=jdbc:mysql://db:3306/${DB_NAME:-wattwerk}
+      -schemas=${DB_NAME:-wattwerk}
+      -user=root
+      -password=${DB_ROOT_PASSWORD}
+      -connectRetries=60
+      migrate
+    volumes:
+      - ./sql:/flyway/sql:ro
+    networks:
+      - internal
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: .
+      dockerfile: DockerfileBackend
+    container_name: wattwerk-backend
+    restart: unless-stopped
+    # Nur auf der Loopback-Adresse, damit hier niemand am Proxy vorbeikommt.
+    ports:
+      - "127.0.0.1:${API_PORT:-8088}:8080"
+    networks:
+      - internal
+      - proxy
+    depends_on:
+      flyway:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-wattwerk}
+      DB_USER: ${DB_USER:-wattwerk}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD fehlt}
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET:?ACCESS_TOKEN_SECRET fehlt}
+      REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET:?REFRESH_TOKEN_SECRET fehlt}
+      BASE_URL: ${BASE_URL:-https://api.wattwerk.eliaspeeters.de}
+      # Welche Web-Herkünfte im Browser auf die API zugreifen dürfen. Die Apps
+      # schicken keinen Origin-Header und sind davon nicht betroffen.
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://wattwerk.eliaspeeters.de}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  landingpage:
+    build:
+      context: .
+      dockerfile: DockerfileLandingpage
+    container_name: wattwerk-landingpage
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${LANDINGPAGE_PORT:-8089}:80"
+    networks:
+      - internal
+      - proxy
+    depends_on:
+      - backend
+    environment:
+      # Der Browser ruft immer /api auf derselben Adresse auf; dieser nginx
+      # reicht es im internen Netz weiter. Dadurch gibt es für das Portal kein
+      # CORS und keine zweite Adresse im gebauten JavaScript.
+      API_URL: http://backend:8080
+
+networks:
+  internal:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:-wattwerk-proxy}
+
+volumes:
+  wattwerk_db:

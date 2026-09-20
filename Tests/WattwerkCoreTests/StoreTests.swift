@@ -97,6 +97,33 @@ struct StoreTests {
         #expect(reloaded.settings.simulatorEnabled)
     }
 
+    @Test("Eine lokale Profiländerung gewinnt, eine übernommene nicht")
+    func profileSyncDirection() {
+        let store = SettingsStore(storage: InMemoryStorage())
+
+        // Noch nie abgeglichen: im Zweifel hochschieben, damit eine nach einem
+        // Test eingetragene FTP nicht verlorengeht.
+        #expect(store.riderNeedsUpload)
+
+        store.markProfileSynced()
+        #expect(!store.riderNeedsUpload)
+
+        // Änderung auf dem Gerät -> das Gerät gewinnt.
+        store.rider.ftp = 280
+        #expect(store.riderNeedsUpload)
+
+        store.markProfileSynced()
+        #expect(!store.riderNeedsUpload)
+
+        // Vom Server übernommen -> gilt nicht als lokale Änderung, sonst käme
+        // der Server nie zum Zug.
+        var remote = store.rider
+        remote.ftp = 265
+        store.applyRemoteRider(remote)
+        #expect(!store.riderNeedsUpload)
+        #expect(store.rider.ftp == 265)
+    }
+
     @Test("CSV-Export enthält Kopfzeile und alle Werte")
     func csvExport() {
         let record = makeRecord(duration: 3, samples: 3)

@@ -54,6 +54,19 @@ public final class WorkoutLibrary {
         return workout
     }
 
+    /// Ersetzt die eigenen Programme durch den Stand des Servers.
+    ///
+    /// Mitgelieferte Programme bleiben unangetastet - sie liegen in der App und
+    /// sind auch ohne Konto da.
+    public func replaceUserWorkouts(_ workouts: [Workout]) {
+        userWorkouts = workouts.map { workout in
+            var copy = workout
+            copy.isBuiltIn = false
+            return copy
+        }
+        persist()
+    }
+
     public func delete(id: UUID) {
         userWorkouts.removeAll { $0.id == id }
         persist()

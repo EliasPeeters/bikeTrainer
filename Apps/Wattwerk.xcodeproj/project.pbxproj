@@ -259,6 +259,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Mac/Wattwerk.entitlements;
+				INFOPLIST_FILE = Config/Mac-Info.plist;
 				CODE_SIGN_IDENTITY = "-";
 				COMBINE_HIDPI_IMAGES = YES;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
@@ -282,6 +283,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Mac/Wattwerk.entitlements;
+				INFOPLIST_FILE = Config/Mac-Info.plist;
 				CODE_SIGN_IDENTITY = "-";
 				COMBINE_HIDPI_IMAGES = YES;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
@@ -303,7 +305,8 @@
 				PRODUCT_NAME = Wattwerk;
 				TVOS_DEPLOYMENT_TARGET = 17.0;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = "App Icon & Top Shelf Image";
+				INFOPLIST_FILE = Config/TV-Info.plist;
 				SDKROOT = appletvos;
 				SUPPORTED_PLATFORMS = "appletvos appletvsimulator";
 				TARGETED_DEVICE_FAMILY = 3;
@@ -325,7 +328,8 @@
 				PRODUCT_NAME = Wattwerk;
 				TVOS_DEPLOYMENT_TARGET = 17.0;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = "App Icon & Top Shelf Image";
+				INFOPLIST_FILE = Config/TV-Info.plist;
 				SDKROOT = appletvos;
 				SUPPORTED_PLATFORMS = "appletvos appletvsimulator";
 				TARGETED_DEVICE_FAMILY = 3;

@@ -62,15 +62,19 @@ struct WorkoutDetailView: View {
                     .font(.system(size: 15 * Theme.scale))
                     .foregroundStyle(.secondary)
             }
-            if !workout.tags.isEmpty {
-                HStack(spacing: 8) {
-                    ForEach(workout.tags, id: \.self) { tag in
-                        Text(tag)
-                            .font(.system(size: 12 * Theme.scale, weight: .medium))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(Capsule().fill(Color.white.opacity(0.10)))
-                    }
+            HStack(spacing: 8) {
+                ForEach(workout.tags, id: \.self) { tag in
+                    badge(tag)
+                }
+                if workout.isBuiltIn {
+                    badge("Katalog")
+                } else if workout.visibility == .public {
+                    badge("Öffentlich", tint: Theme.positive)
+                } else {
+                    badge("Privat")
+                }
+                if let owner = workout.ownerName, !workout.isBuiltIn {
+                    badge("von \(owner)")
                 }
             }
         }
@@ -91,6 +95,38 @@ struct WorkoutDetailView: View {
         .cardBackground()
     }
 
+    private func badge(_ text: String, tint: Color = .white) -> some View {
+        Text(text)
+            .font(.system(size: 12 * Theme.scale, weight: .medium))
+            .foregroundStyle(tint)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(tint == .white ? Color.white.opacity(0.10) : tint.opacity(0.20)))
+    }
+
+    /// Nur eigene Programme lassen sich teilen - und nur mit Konto, weil ein
+    /// öffentliches Programm irgendwo liegen muss.
+    private var canShare: Bool {
+        model.account.isSignedIn && !workout.isBuiltIn
+    }
+
+    @ViewBuilder
+    private var shareButton: some View {
+        if canShare {
+            Button {
+                workout.visibility = workout.visibility == .public ? .private : .public
+                workout.updatedAt = Date()
+                model.save(workout)
+            } label: {
+                Label(
+                    workout.visibility == .public ? "Privat stellen" : "Öffentlich teilen",
+                    systemImage: workout.visibility == .public ? "lock" : "globe"
+                )
+            }
+            .buttonStyle(.bordered)
+        }
+    }
+
     private var startButton: some View {
         VStack(alignment: .leading, spacing: 8) {
             Button {
@@ -103,6 +139,8 @@ struct WorkoutDetailView: View {
             }
             .buttonStyle(.borderedProminent)
             .disabled(!model.hasPowerSource)
+
+            shareButton
 
             if !model.hasPowerSource {
                 Text("Kein Trainer verbunden. Unter „Geräte“ verbinden oder den Simulator einschalten.")

@@ -95,6 +95,52 @@ Die drei `@Observable`-Läden (`SettingsStore`, `WorkoutLibrary`, `SessionStore`
 schreiben bei jeder Änderung und laden beim Start. Für die Datenmengen hier ist
 das völlig ausreichend; SwiftData bringt in dieser Größenordnung nur Kopplung.
 
+## Konto und Abgleich
+
+Die App läuft **vollständig ohne Konto**. Keine Funktion ist hinter der
+Anmeldung versteckt: Programme bauen, fahren, auswerten geht lokal. Ein Konto
+bringt genau eines dazu – dass alles auf dem Server liegt und auf jedem Gerät
+und im Web-Portal auftaucht.
+
+Drei Bausteine in `WattwerkCore/Sync`:
+
+* **`APIClient`** – ein `actor` mit den HTTP-Aufrufen. Er kennt nur die Tokens,
+  nicht den Anmeldezustand; dadurch ist er in Tests austauschbar, ohne die
+  Anmeldelogik mitzuschleppen. Bei 401 frischt er **einmal** auf und wiederholt
+  den Aufruf.
+* **`AccountStore`** – wer angemeldet ist, Tokens und zwischengespeichertes
+  Profil.
+* **`SyncService`** – der Abgleich, an einer Stelle beschrieben statt über die
+  App verteilt.
+
+### Die Regel für Programme
+
+```
+hochschieben, wenn  syncedAt == nil            (noch nie abgeglichen)
+                 || updatedAt > syncedAt       (seither lokal geändert)
+danach gilt die Liste des Servers.
+```
+
+Das `syncedAt` je Programm ist der Grund, warum ein im Web gelöschtes Programm
+auch wirklich verschwindet. Ohne es würde jedes Gerät, das die Datei noch hat,
+sie beim nächsten Abgleich wieder hochladen – und das Programm wäre nicht
+totzukriegen.
+
+Einheiten wandern nur hoch und tragen dafür ein `uploadedAt`. Schlägt der
+Upload fehl, bleibt die Einheit als ausstehend liegen und geht beim nächsten
+Abgleich mit; verloren geht nichts.
+
+Das Drahtformat steht **explizit** in `Sync/WorkoutPayload.swift` und
+`packages/shared`, statt aus Swifts `Codable` zu fallen: Swift kodiert
+Aufzählungen mit zugeordneten Werten als `{"steady":{"_0":…}}`, was von
+TypeScript aus niemand lesen will und beim kleinsten Umbau am Swift-Modell
+stillschweigend kippt.
+
+Der mitgelieferte Katalog bleibt in der App (`BuiltInWorkouts`) **und** liegt in
+der Datenbank – mit denselben Kennungen, erzeugt aus demselben Code. Offline ist
+er damit da, online entstehen keine Dubletten, und ein Test vergleicht beide
+Seiten.
+
 ## Oberfläche
 
 Eine `RootView` für beide Plattformen. Der Unterschied ist klein und ehrlich
@@ -111,7 +157,7 @@ Ein paar SwiftUI-Bausteine gibt es auf tvOS nicht (`Stepper`, `Slider`,
 
 ## Tests
 
-76 Tests, die ohne Hardware in Millisekunden laufen:
+82 Tests, davon 76 ohne alles in Millisekunden:
 
 * **Domäne** – Zeitachse an den Segmentgrenzen, Rampen, Zonen, TSS/NP/IF
   (eine Stunde an der Schwelle ergibt exakt 100 TSS), Bibliothek, Verlauf.
@@ -122,3 +168,16 @@ Ein paar SwiftUI-Bausteine gibt es auf tvOS nicht (`Stepper`, `Slider`,
   bei der Trittfrequenz, abgeschnittene Pakete.
 * **Integration** – vollständige Fahrten gegen den Simulator: Zielverfolgung,
   Segmentwechsel, Freigabe bei freien Blöcken, plausible Auswertung.
+* **Live-API** – der echte `APIClient` gegen einen laufenden Server. Übersprungen,
+  solange `WATTWERK_API_URL` nicht gesetzt ist, damit `swift test` ohne Docker
+  durchläuft:
+
+  ```bash
+  WATTWERK_API_URL=http://localhost:8088 swift test --filter Live
+  ```
+
+  Ihr Wert liegt darin, dass sie die Umwandlung zwischen Swift-Modell und
+  Drahtformat gegen die echte Gegenstelle prüfen – Rampen, Trittfrequenz,
+  absolute Watt, freie Blöcke – und dass der Katalog auf beiden Seiten derselbe
+  ist. Eine Attrappe würde genau die Abweichung wegdefinieren, die hier
+  auffallen soll.

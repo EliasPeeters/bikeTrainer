@@ -7,7 +7,8 @@ public enum Theme {
     public static let background = Color(red: 0.05, green: 0.06, blue: 0.08)
     public static let surface = Color(red: 0.10, green: 0.11, blue: 0.14)
     public static let surfaceRaised = Color(red: 0.14, green: 0.15, blue: 0.19)
-    public static let accent = Color(red: 0.98, green: 0.72, blue: 0.11)
+    /// rgb(78, 149, 248) - dieselbe Blaustufe wie im Logo.
+    public static let accent = Color(red: 78 / 255, green: 149 / 255, blue: 248 / 255)
     public static let positive = Color(red: 0.30, green: 0.80, blue: 0.48)
     public static let negative = Color(red: 0.93, green: 0.35, blue: 0.33)
     public static let heartRate = Color(red: 0.95, green: 0.30, blue: 0.40)

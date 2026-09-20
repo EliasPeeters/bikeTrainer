@@ -65,7 +65,11 @@ public struct WorkoutProfileChart: View {
                 var line = Path()
                 line.move(to: CGPoint(x: x, y: 0))
                 line.addLine(to: CGPoint(x: x, y: size.height))
-                context.stroke(line, with: .color(Theme.accent), lineWidth: 2.5)
+                // Weiß, nicht in der Akzentfarbe: die ist jetzt ein Blau, und
+                // die Grundlagenzone - über der die Marke die meiste Zeit steht -
+                // ist ebenfalls blau. Auf Weiß hebt sie sich von jeder Zone ab.
+                context.stroke(line, with: .color(Color.black.opacity(0.6)), lineWidth: 4)
+                context.stroke(line, with: .color(.white), lineWidth: 2)
             }
         }
         .background(Color.black.opacity(0.25))

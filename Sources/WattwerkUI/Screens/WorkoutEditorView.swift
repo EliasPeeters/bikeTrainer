@@ -64,6 +64,16 @@ struct WorkoutEditorView: View {
             TextField("Kurzbeschreibung", text: $draft.summary, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1...3)
+
+            Picker("Sichtbarkeit", selection: $draft.visibility) {
+                ForEach(WorkoutVisibility.allCases, id: \.self) { visibility in
+                    Text(visibility.localizedName).tag(visibility)
+                }
+            }
+            .pickerStyle(.segmented)
+            Text("Öffentliche Programme tauchen für alle unter „Entdecken“ auf. Das wirkt erst, wenn du angemeldet bist.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             if draft.isBuiltIn {
                 Label(
                     "Mitgelieferte Programme werden beim Sichern als eigene Kopie angelegt.",

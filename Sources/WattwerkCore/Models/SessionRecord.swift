@@ -35,6 +35,10 @@ public struct SessionRecord: Identifiable, Hashable, Sendable, Codable {
     /// Per-second track. Dropped on tvOS, where the only persistent storage is
     /// a 500 kB `UserDefaults` bucket - see `SessionStore`.
     public var samples: [RideSample]
+    /// Gesetzt, sobald die Einheit beim Server angekommen ist. Wird bei
+    /// Einheiten, die vor dieser Fassung entstanden sind, zu `nil` dekodiert -
+    /// sie gelten damit als noch nicht hochgeladen, was die sichere Annahme ist.
+    public var uploadedAt: Date?
 
     public init(
         id: UUID = UUID(),
@@ -54,7 +58,8 @@ public struct SessionRecord: Identifiable, Hashable, Sendable, Codable {
         averageHeartRate: Int? = nil,
         maxHeartRate: Int? = nil,
         timeInZone: [ZoneBucket] = [],
-        samples: [RideSample] = []
+        samples: [RideSample] = [],
+        uploadedAt: Date? = nil
     ) {
         self.id = id
         self.workoutID = workoutID
@@ -74,6 +79,7 @@ public struct SessionRecord: Identifiable, Hashable, Sendable, Codable {
         self.maxHeartRate = maxHeartRate
         self.timeInZone = timeInZone
         self.samples = samples
+        self.uploadedAt = uploadedAt
     }
 
     /// Drops the per-second track - used before writing to constrained storage.
