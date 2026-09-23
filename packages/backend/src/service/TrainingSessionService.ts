@@ -1,12 +1,15 @@
 import {
+    RideTrackResponse,
     TrainingSessionListResponse,
     TrainingSessionPayload,
     TrainingSessionResponse,
 } from "@wattwerk/shared"
 import {Op} from "sequelize"
 import {DBTrainingSession} from "../db/DBTrainingSession"
+import {DBTrainingSessionTrack} from "../db/DBTrainingSessionTrack"
 import {DBWorkout} from "../db/DBWorkout"
 import {failure, Response, Server} from "../server"
+import {validateTrack} from "./RideTrackValidation"
 import {isNonEmptyString} from "./Validation"
 
 const MAX_SESSIONS_PER_PAGE = 200
@@ -18,11 +21,26 @@ export class TrainingSessionService {
     public configure(server: Server) {
         server
             .route("/sessions", {authenticated: true, includeUser: true})
-            .postJSON<TrainingSessionPayload, TrainingSessionResponse>(async (request) => {
+            // Grosser Koerper: mit Sekundenspur ist eine lange Fahrt ein paar
+            // hundert Kilobyte, und die Standardgrenze von 1 MB schneidet sie
+            // ohne brauchbare Meldung ab.
+            .postLargeJSON<TrainingSessionPayload, TrainingSessionResponse>(async (request) => {
                 const body = request.body
                 const problem = validatePayload(body)
                 if (problem !== null) {
                     return failure(400, "INVALID_BODY", problem)
+                }
+
+                // Die Spur wird vor dem Schreiben geprueft, nicht danach: eine
+                // Einheit anzulegen und die Kurve dann still fallen zu lassen
+                // waere der Fall, den niemand bemerkt.
+                let track = null
+                if (body.track !== undefined && body.track !== null) {
+                    const checked = validateTrack(body.track, body.durationSeconds)
+                    if (!checked.ok) {
+                        return failure(400, "INVALID_BODY", checked.problem)
+                    }
+                    track = checked.track
                 }
 
                 const startedAt = new Date(body.startedAt)
@@ -69,7 +87,19 @@ export class TrainingSessionService {
                     return failure(500, "INTERNAL", "Die Einheit konnte nicht gespeichert werden.")
                 }
 
-                return Response.json(existing === null ? 201 : 200, session.toResponse())
+                if (track !== null) {
+                    await DBTrainingSessionTrack.upsert({sessionID: session.id, ...track})
+                }
+                // Kam kein `track` mit, bleibt eine vorhandene Spur stehen.
+                // Version 1.0 der App kennt das Feld nicht, und auf dem Apple
+                // TV faellt es weg - beide duerfen eine Kurve, die schon da
+                // ist, nicht loeschen, indem sie dieselbe Einheit noch einmal
+                // hochladen.
+                const hasTrack =
+                    track !== null ||
+                    (await DBTrainingSessionTrack.count({where: {sessionID: session.id}})) > 0
+
+                return Response.json(existing === null ? 201 : 200, session.toResponse(hasTrack))
             })
 
         server
@@ -91,10 +121,77 @@ export class TrainingSessionService {
                     attributes: ["trainingStressScore"],
                 })
 
+                // Eine Abfrage fuer alle: welche der geladenen Einheiten eine
+                // Spur haben. Je Zeile nachzusehen waere ein Roundtrip pro
+                // Kachel im Verlauf.
+                const trackIDs = new Set<number>()
+                if (sessions.length > 0) {
+                    const withTrack = await DBTrainingSessionTrack.findAll({
+                        where: {sessionID: {[Op.in]: sessions.map((session) => session.id)}},
+                        attributes: ["sessionID"],
+                    })
+                    for (const entry of withTrack) {
+                        trackIDs.add(entry.sessionID)
+                    }
+                }
+
                 return Response.json(200, {
-                    sessions: sessions.map((session) => session.toResponse()),
+                    sessions: sessions.map((session) => session.toResponse(trackIDs.has(session.id))),
                     stressLastSevenDays: recent.reduce((sum, entry) => sum + entry.trainingStressScore, 0),
                 })
+            })
+
+        // Einzelne Einheit: das Web-Portal zeigt eine Kurve auf einer eigenen
+        // Seite und soll dafuer nicht den ganzen Verlauf laden.
+        server
+            .route("/sessions/:id", {authenticated: true, includeUser: true})
+            .get<TrainingSessionResponse>(async (request) => {
+                const id = parseInt(request.parameter.id, 10)
+                if (!Number.isFinite(id)) {
+                    return failure(400, "INVALID_BODY", "Ungültige Kennung.")
+                }
+
+                const session = await DBTrainingSession.findOne({
+                    where: {id, userID: request.user.id},
+                })
+                if (session === null) {
+                    return failure(404, "NOT_FOUND", "Diese Einheit gibt es nicht.")
+                }
+
+                const hasTrack = (await DBTrainingSessionTrack.count({where: {sessionID: id}})) > 0
+                return Response.json(200, session.toResponse(hasTrack))
+            })
+
+        server
+            .route("/sessions/:id/track", {authenticated: true, includeUser: true})
+            .get<RideTrackResponse>(async (request) => {
+                const id = parseInt(request.parameter.id, 10)
+                if (!Number.isFinite(id)) {
+                    return failure(400, "INVALID_BODY", "Ungültige Kennung.")
+                }
+
+                // Erst die Einheit, dann die Spur: gehoert die Einheit jemand
+                // anderem, darf die Antwort nicht verraten, ob es zu dieser
+                // Kennung ueberhaupt eine Kurve gibt.
+                const session = await DBTrainingSession.findOne({
+                    where: {id, userID: request.user.id},
+                    attributes: ["id"],
+                })
+                if (session === null) {
+                    return failure(404, "NOT_FOUND", "Diese Einheit gibt es nicht.")
+                }
+
+                const track = await DBTrainingSessionTrack.findByPk(id)
+                if (track === null) {
+                    return failure(
+                        404,
+                        "NOT_FOUND",
+                        "Zu dieser Einheit liegt kein Sekundenverlauf - sie wurde vor Version 1.1 " +
+                            "aufgezeichnet oder auf einem Gerät, das keinen speichert."
+                    )
+                }
+
+                return Response.json(200, {sessionID: id, track: track.toDTO()})
             })
 
         server

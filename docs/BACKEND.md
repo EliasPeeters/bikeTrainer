@@ -62,9 +62,11 @@ statt im Handler auf `undefined` zu prüfen.
 | GET/POST | `/oauth/authorize` | – | Anmeldung und Zustimmung, als HTML-Seite |
 | POST | `/oauth/token` | – | Code gegen Tokens, und Auffrischen |
 | POST | `/oauth/register` | – | Dynamic Client Registration |
-| POST | `/sessions` | ja | Gefahrene Einheit hochladen |
-| GET | `/sessions` | ja | Verlauf plus Wochenbelastung |
-| DELETE | `/sessions/:id` | ja | Einheit löschen |
+| POST | `/sessions` | ja | Gefahrene Einheit hochladen, mit oder ohne Sekundenverlauf |
+| GET | `/sessions` | ja | Verlauf plus Wochenbelastung (ohne Sekundenverlauf) |
+| GET | `/sessions/:id` | ja | Einzelne Einheit |
+| GET | `/sessions/:id/track` | ja | Der Sekundenverlauf dieser Einheit |
+| DELETE | `/sessions/:id` | ja | Einheit löschen, samt Sekundenverlauf |
 | GET | `/workouts` | ja | Eigene Programme |
 | POST | `/workouts` | ja | Anlegen oder ersetzen (Kennung vom Client) |
 | PUT | `/workouts/:id` | ja | Ändern |
@@ -161,6 +163,30 @@ wären zwei Datenmodelle, zwei Oberflächen und die Frage, warum ein Programm
 nicht in beidem liegen darf. Sie hat eine Reihenfolge; wer sie als Ordner
 benutzt, ignoriert sie.
 
+### Der Sekundenverlauf einer Einheit
+
+Ab Version 1.1 lädt die App nicht nur die Kennzahlen hoch, sondern auf Wunsch
+die ganze Fahrt: Leistung, Vorgabe, Puls, Trittfrequenz und Geschwindigkeit,
+ein Wert je Sekunde.
+
+* **Spaltenweise, nicht als Liste von Punkten.** `{"power":[…],"heartRate":[…]}`
+  statt 3600 Objekten mit denselben fünf Feldnamen. Eine Stunde Fahrt sind so
+  rund 70 kB statt gut 200 kB. Alle vorhandenen Spalten sind gleich lang; eine
+  Messgröße, die es nie gab, fehlt ganz, ein einzelnes `null` ist eine Lücke.
+* **`track` ist optional, und das bleibt so.** Version 1.0 kennt das Feld nicht,
+  und auf dem Apple TV kann es fehlen. Ein Upload **ohne** `track` lässt eine
+  bereits gespeicherte Kurve stehen – sonst löschte ein Nachtrag vom Fernseher
+  die Kurve vom Mac.
+* **Eigene Route zum Lesen.** `GET /sessions` liefert nur `hasTrack`; die Kurve
+  kommt einzeln über `/sessions/:id/track`. Eine fremde Einheit antwortet dort
+  mit 404 und nicht 403, wie überall sonst auch.
+* **Geprüft wird vor dem Schreiben**, und einzelne unmögliche Werte werden zu
+  Lücken statt zum Fehler: 4000 W beim Antreten sind ein Messfehler des
+  Trainers, kein Grund, die Einheit abzulehnen. Strukturell falsches – Spalten
+  ungleicher Länge, eine Spur länger als die Fahrt – wird dagegen abgewiesen.
+* **Die Route hat eine größere Körpergrenze** (`postLargeJSON`, 8 MB statt 1).
+  Sie gilt nur dort; global wäre sie eine Einladung an jede ungeprüfte Route.
+
 ### Die Reihen der Bibliothek
 
 `/discover` liefert fertige Reihen – der Server entscheidet, welche es gibt und
@@ -227,10 +253,15 @@ E-Mail und Passwort, mehr nicht.
 * **`user`** – Zugangsdaten plus Fahrerprofil (FTP, Maximalpuls, Ruhepuls,
   Gewicht). Dieselben Felder wie `RiderProfile` in der App, damit es keine
   zweite Wahrheit gibt.
-* **`trainingSession`** – eine gefahrene Einheit, ohne die Sekundenspur. Der
+* **`trainingSession`** – eine gefahrene Einheit, nur die Kennzahlen. Der
   eindeutige Index auf `(userID, clientID)` macht den Upload wiederholbar: die
   App schickt eine Einheit nach einem Netzfehler erneut, und das darf den
   Verlauf nicht verdoppeln.
+* **`trainingSessionTrack`** (`sql/V5__session_tracks.sql`) – der
+  Sekundenverlauf, eine Zeile je Einheit, die Messreihen spaltenweise als JSON.
+  Eigene Tabelle, weil der Verlauf zwanzig Einheiten auf einmal liest und eine
+  Kurve je Stunde ein paar hundert Kilobyte ist; als Spalte käme sie bei jeder
+  Übersicht mit über die Leitung.
 
 * **`workout`** – Segmente und Schlagworte als JSON. Die Datenbank muss nie in
   sie hineinsehen, und eine eigene Tabelle je Block wäre ein Join pro Kachel in

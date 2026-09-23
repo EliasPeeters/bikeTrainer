@@ -142,7 +142,7 @@ public final class SyncService {
         var rejected: Error?
         for record in sessions.pendingUploads {
             do {
-                try await account.client.upload(session: record)
+                try await account.client.upload(session: record, track: sessions.track(for: record))
                 sessions.markUploaded(id: record.id)
             } catch let error as APIError {
                 switch error {

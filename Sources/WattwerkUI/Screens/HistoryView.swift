@@ -134,9 +134,23 @@ struct SessionDetailView: View {
     let model: AppModel
     let record: SessionRecord
     @Environment(\.dismiss) private var dismiss
+    @State private var shownMetrics: Set<RideMetric> = [.power]
+    /// Einmal geladen, nicht bei jedem Zeichnen neu.
+    ///
+    /// Die Spur kann in der Einheit stecken oder daneben liegen - auf dem Apple
+    /// TV ist sie nicht Teil des Verlaufs, sondern liegt komprimiert im
+    /// Zwischenlager. Sie in einer berechneten Eigenschaft zu holen hieße, sie
+    /// mehrmals je Bildaufbau zu entpacken.
+    /// `nil`, solange noch nicht nachgesehen wurde - sonst stünde für einen
+    /// Bildaufbau „Kein Sekundenverlauf“ da, obwohl es einen gibt.
+    @State private var samples: [RideSample]?
     #if !os(tvOS)
     @State private var isExporting = false
     #endif
+
+    private var availableMetrics: [RideMetric] {
+        RideMetric.allCases.filter { $0.isPresent(in: samples ?? []) }
+    }
 
     var body: some View {
         ScrollView {
@@ -173,10 +187,7 @@ struct SessionDetailView: View {
                 .padding(18)
                 .cardBackground()
 
-                if !record.samples.isEmpty {
-                    PowerTrackChart(samples: record.samples, ftp: record.ftp)
-                        .frame(height: 160 * Theme.scale)
-                }
+                trackSection
 
                 if !record.timeInZone.isEmpty {
                     ZoneBreakdown(buckets: record.timeInZone, total: record.duration)
@@ -190,7 +201,7 @@ struct SessionDetailView: View {
                         Label("Als CSV exportieren", systemImage: "square.and.arrow.up")
                     }
                     .buttonStyle(.bordered)
-                    .disabled(record.samples.isEmpty)
+                    .disabled(samples?.isEmpty != false)
 
                     Button(role: .destructive) {
                         model.sessions.delete(id: record.id)
@@ -201,7 +212,7 @@ struct SessionDetailView: View {
                 }
                 .fileExporter(
                     isPresented: $isExporting,
-                    document: CSVDocument(text: record.csv()),
+                    document: CSVDocument(text: record.csv(samples: samples ?? [])),
                     contentType: .commaSeparatedText,
                     defaultFilename: record.suggestedFileName
                 ) { _ in }
@@ -211,6 +222,51 @@ struct SessionDetailView: View {
         }
         .background(Theme.background)
         .sectionTitle(record.workoutName)
+        .task(id: record.id) {
+            samples = model.sessions.samples(for: record)
+        }
+    }
+
+    /// Der Sekundenverlauf, mit den Kurven, die diese Fahrt hergibt.
+    @ViewBuilder
+    private var trackSection: some View {
+        let track = samples
+        let metrics = availableMetrics
+
+        if track == nil {
+            EmptyView()
+        } else if let track, track.count > 1 {
+            VStack(alignment: .leading, spacing: 12) {
+                if metrics.count > 1 {
+                    RideMetricPicker(available: metrics, selection: $shownMetrics)
+                }
+                RideTrackChart(
+                    samples: track,
+                    ftp: record.ftp,
+                    // Nach dem Laden ist nur die Leistung an. Wählt jemand eine
+                    // Größe ab, die es hier gar nicht gibt, bliebe sonst ein
+                    // leeres Diagramm stehen.
+                    metrics: shownMetrics.intersection(metrics).isEmpty
+                        ? Set(metrics.prefix(1))
+                        : shownMetrics.intersection(metrics)
+                )
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Kein Sekundenverlauf")
+                    .font(.system(size: 15 * Theme.scale, weight: .semibold))
+                Text(
+                    model.account.isSignedIn && record.uploadedAt != nil
+                        ? "Die Kurve dieser Einheit liegt im Konto - im Web-Portal unter „Verlauf“."
+                        : "Diese Einheit wurde ohne Sekundenverlauf gespeichert."
+                )
+                .font(.system(size: 13 * Theme.scale))
+                .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(18)
+            .cardBackground()
+        }
     }
 
     #if os(tvOS)
@@ -234,54 +290,6 @@ struct SessionDetailView: View {
         .padding(.bottom, 12)
     }
     #endif
-}
-
-/// The recorded power trace with the target overlaid.
-struct PowerTrackChart: View {
-    let samples: [RideSample]
-    let ftp: Int
-
-    var body: some View {
-        Canvas { context, size in
-            guard samples.count > 1 else { return }
-            let maxWatts = max(Double(samples.map(\.power).max() ?? ftp), Double(ftp)) * 1.1
-            let stepX = size.width / Double(samples.count - 1)
-
-            var powerPath = Path()
-            var targetPath = Path()
-            var hasTarget = false
-
-            for (index, sample) in samples.enumerated() {
-                let x = Double(index) * stepX
-                let y = size.height - size.height * (Double(sample.power) / maxWatts)
-                if index == 0 {
-                    powerPath.move(to: CGPoint(x: x, y: y))
-                } else {
-                    powerPath.addLine(to: CGPoint(x: x, y: y))
-                }
-                if let target = sample.targetPower {
-                    let ty = size.height - size.height * (Double(target) / maxWatts)
-                    if !hasTarget {
-                        targetPath.move(to: CGPoint(x: x, y: ty))
-                        hasTarget = true
-                    } else {
-                        targetPath.addLine(to: CGPoint(x: x, y: ty))
-                    }
-                }
-            }
-
-            context.stroke(powerPath, with: .color(Theme.cadence), lineWidth: 1.5)
-            if hasTarget {
-                context.stroke(
-                    targetPath,
-                    with: .color(Theme.accent.opacity(0.9)),
-                    style: StrokeStyle(lineWidth: 1.5, dash: [5, 3])
-                )
-            }
-        }
-        .padding(12)
-        .cardBackground()
-    }
 }
 
 #if !os(tvOS)

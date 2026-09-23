@@ -86,12 +86,55 @@ struct StoreTests {
         #expect(SessionStore(storage: storage).pendingUploads.isEmpty)
     }
 
-    @Test("Ohne Sekundenaufzeichnung wird die Spur verworfen (Apple TV)")
+    @Test("Ohne Sekundenaufzeichnung trägt der Verlauf die Spur nicht mit (Apple TV)")
     func dropsSamplesWhenAsked() {
         let store = SessionStore(storage: InMemoryStorage(), keepsSampleTracks: false)
         store.add(makeRecord(duration: 600, samples: 600))
         #expect(store.sessions.first?.samples.isEmpty == true)
         #expect(store.sessions.first?.averagePower == 200)
+    }
+
+    /// Der Fall, der vorher die Kurve kostete: Apple TV, kein Netz. Die Einheit
+    /// liegt als ausstehend herum, und ohne Zwischenlager wäre ihre Spur beim
+    /// Speichern gelöscht worden - hochgeladen käme nur die Zusammenfassung an.
+    @Test("Die Spur einer ausstehenden Einheit überlebt auch ohne Sekundenaufzeichnung")
+    func keepsTrackForPendingUpload() {
+        let storage = InMemoryStorage()
+        let store = SessionStore(storage: storage, keepsSampleTracks: false)
+        store.add(makeRecord(duration: 600, samples: 600))
+        let record = try! #require(store.sessions.first)
+
+        let track = try! #require(store.track(for: record))
+        #expect(track.sampleCount == 600)
+        #expect(track.heartRate?.compactMap { $0 }.count == 600)
+        #expect(store.samples(for: record).count == 600)
+
+        // Und sie übersteht einen Neustart, denn genau dann ist noch kein Netz
+        // da gewesen.
+        let reloaded = SessionStore(storage: storage, keepsSampleTracks: false)
+        #expect(reloaded.track(for: try! #require(reloaded.sessions.first))?.sampleCount == 600)
+    }
+
+    @Test("Nach dem Upload wird die zwischengelagerte Spur weggeräumt")
+    func dropsTrackOnceUploaded() {
+        let store = SessionStore(storage: InMemoryStorage(), keepsSampleTracks: false)
+        store.add(makeRecord(duration: 600, samples: 600))
+        let record = try! #require(store.sessions.first)
+
+        store.markUploaded(id: record.id)
+        #expect(store.track(for: record) == nil)
+        // Die Einheit selbst bleibt - nur die Kurve liegt jetzt beim Server.
+        #expect(store.sessions.count == 1)
+    }
+
+    @Test("Eine gelöschte Einheit nimmt ihre Spur mit")
+    func deletingTakesTrack() {
+        let store = SessionStore(storage: InMemoryStorage(), keepsSampleTracks: false)
+        store.add(makeRecord(duration: 600, samples: 600))
+        let record = try! #require(store.sessions.first)
+
+        store.delete(id: record.id)
+        #expect(store.track(for: record) == nil)
     }
 
     @Test("Die Wochenbelastung summiert nur die letzten sieben Tage")

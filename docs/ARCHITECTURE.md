@@ -87,9 +87,21 @@ Dokumentverzeichnis, nur `UserDefaults` mit rund 500 kB.
 
 | Plattform | Umsetzung | Sekundenverlauf |
 |---|---|---|
-| macOS, iOS | `FileStorage` (JSON in Application Support) | wird gespeichert |
-| tvOS | `UserDefaultsStorage` | wird verworfen, nur Zusammenfassung bleibt |
+| macOS, iOS | `FileStorage` (JSON in Application Support) | bleibt in der Einheit |
+| tvOS | `UserDefaultsStorage` | nicht im Verlauf, aber komprimiert im Zwischenlager, bis der Server ihn hat |
 | Tests | `InMemoryStorage` | nach Bedarf |
+
+Das Zwischenlager (`RideTrackStore`) gibt es wegen genau eines Falls: Apple TV
+ohne Netz. Der Verlauf trägt die Spur dort nicht mit – bei 500 kB Budget wäre er
+nach drei Fahrten voll –, und ohne Zwischenlager wäre die Kurve beim Speichern
+gelöscht, bevor sie je hochgehen konnte. Sie liegt deshalb daneben, je Einheit
+unter einem eigenen Schlüssel, als JSON durch zlib (eine Stunde Fahrt: rund
+14 kB statt 70), zusammen höchstens 150 kB. Ist die Einheit beim Server
+angekommen, wird sie weggeräumt.
+
+Wer die Spur braucht, fragt nicht die Einheit, sondern den Laden:
+`SessionStore.track(for:)` und `samples(for:)` wissen, wo sie liegt. Diagramm,
+CSV-Export und Upload sehen den Unterschied zwischen den Plattformen nicht.
 
 Die drei `@Observable`-Läden (`SettingsStore`, `WorkoutLibrary`, `SessionStore`)
 schreiben bei jeder Änderung und laden beim Start. Für die Datenmengen hier ist

@@ -11,9 +11,11 @@ import type {
     LoginRequest,
     RefreshTokenResponse,
     RegisterRequest,
+    RideTrackResponse,
     SaveCollectionRequest,
     SaveWorkoutRequest,
     TrainingSessionListResponse,
+    TrainingSessionResponse,
     UpdateProfileRequest,
     UserResponse,
     WorkoutDTO,
@@ -219,6 +221,14 @@ export const api = {
     },
     sessions(limit = 50) {
         return call<TrainingSessionListResponse>("/sessions", {query: {limit}})
+    },
+    session(id: number) {
+        return call<TrainingSessionResponse>(`/sessions/${id}`)
+    },
+    /** Der Sekundenverlauf. Eigener Aufruf, weil er je Stunde Fahrt ein paar
+        hundert Kilobyte ist und im Verlauf niemand ihn braucht. */
+    sessionTrack(id: number) {
+        return call<RideTrackResponse>(`/sessions/${id}/track`)
     },
     deleteSession(id: number) {
         return call<{deleted: boolean}>(`/sessions/${id}`, {method: "DELETE"})

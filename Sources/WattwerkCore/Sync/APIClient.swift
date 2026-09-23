@@ -162,9 +162,19 @@ public actor APIClient {
 
     // MARK: Einheiten
 
-    public func upload(session record: SessionRecord) async throws {
+    /// Lädt eine Einheit hoch, mit Sekundenverlauf, falls es einen gibt.
+    ///
+    /// Ohne `track` bleibt eine bereits gespeicherte Kurve auf dem Server
+    /// stehen. Das ist der Fall, der beim Apple TV zählt: die Einheit kann von
+    /// dort ein zweites Mal hochgehen, nachdem der Mac die Kurve schon geliefert
+    /// hat, und darf sie dabei nicht mitnehmen.
+    public func upload(session record: SessionRecord, track: RideTrack? = nil) async throws {
         struct Ignored: Decodable {}
-        let _: Ignored = try await send("/sessions", method: "POST", body: SessionPayload(record))
+        let _: Ignored = try await send(
+            "/sessions",
+            method: "POST",
+            body: SessionPayload(record, track: track)
+        )
     }
 
     // MARK: Innenleben

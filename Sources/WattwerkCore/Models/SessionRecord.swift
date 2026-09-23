@@ -90,7 +90,11 @@ public struct SessionRecord: Identifiable, Hashable, Sendable, Codable {
     }
 
     /// Spreadsheet friendly export; good enough to get a ride into anything else.
-    public func csv() -> String {
+    ///
+    /// Die Punkte werden übergeben statt aus `self` genommen: auf dem Apple TV
+    /// liegt die Spur nicht in der Einheit, sondern daneben (`SessionStore`).
+    public func csv(samples: [RideSample]? = nil) -> String {
+        let samples = samples ?? self.samples
         var lines = ["seconds,power,target,cadence,heart_rate,speed_kmh"]
         lines.reserveCapacity(samples.count + 1)
         for sample in samples {

@@ -32,7 +32,13 @@ export class DBTrainingSession extends Model<
     declare createdAt: CreationOptional<Date>
     declare updatedAt: CreationOptional<Date>
 
-    public toResponse(): TrainingSessionResponse {
+    /**
+     * `hasTrack` kommt von aussen, weil die Spur in einer eigenen Tabelle liegt
+     * und der Verlauf sie nicht mitlaedt. Der Aufrufer weiss nach einer
+     * einzigen Abfrage ueber alle Einheiten hinweg, welche eine hat - hier
+     * nachzusehen waere eine Abfrage je Zeile.
+     */
+    public toResponse(hasTrack = false): TrainingSessionResponse {
         return {
             id: this.id,
             clientID: this.clientID,
@@ -52,6 +58,7 @@ export class DBTrainingSession extends Model<
             averageHeartRate: this.averageHeartRate,
             maxHeartRate: this.maxHeartRate,
             createdAt: this.createdAt.toISOString(),
+            hasTrack,
         }
     }
 }

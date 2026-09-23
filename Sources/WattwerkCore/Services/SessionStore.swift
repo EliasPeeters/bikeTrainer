@@ -12,6 +12,9 @@ public final class SessionStore {
     @ObservationIgnored private let storage: any KeyValueStorage
     @ObservationIgnored private let keepsSampleTracks: Bool
     @ObservationIgnored private let limit: Int
+    /// Nur dort benutzt, wo der Verlauf die Spur nicht mitträgt - siehe
+    /// `RideTrackStore`.
+    @ObservationIgnored private let tracks: RideTrackStore
 
     public init(
         storage: any KeyValueStorage,
@@ -21,7 +24,11 @@ public final class SessionStore {
         self.storage = storage
         self.keepsSampleTracks = keepsSampleTracks
         self.limit = limit
+        self.tracks = RideTrackStore(storage: storage)
         load()
+        // Was beim letzten Start liegen blieb, weil die Einheit inzwischen aus
+        // dem Verlauf gefallen ist.
+        tracks.pruneTracks(keeping: Set(sessions.map(\.id)))
     }
 
     public func add(_ record: SessionRecord) {
@@ -33,12 +40,40 @@ public final class SessionStore {
         // Die Entscheidung war also längst getroffen; die Schwelle hat sie
         // stillschweigend überstimmt. Wer eine kurze Fahrt nicht behalten will,
         // sagt das mit dem anderen Knopf.
-        let stored = keepsSampleTracks ? record : record.withoutSamples()
-        sessions.insert(stored, at: 0)
+        if keepsSampleTracks {
+            sessions.insert(record, at: 0)
+        } else {
+            // Der Verlauf bekommt nur die Zusammenfassung, die Spur wandert
+            // daneben ins Zwischenlager - und von dort beim nächsten Abgleich
+            // zum Server. Vorher war sie an dieser Stelle einfach weg.
+            sessions.insert(record.withoutSamples(), at: 0)
+            if let track = RideTrack(samples: record.samples) {
+                tracks.store(track, for: record.id)
+            }
+        }
+
         if sessions.count > limit {
+            let dropped = sessions.suffix(sessions.count - limit)
             sessions.removeLast(sessions.count - limit)
+            for entry in dropped {
+                tracks.remove(id: entry.id)
+            }
         }
         persist()
+    }
+
+    /// Der Sekundenverlauf einer Einheit, egal wo er gerade liegt.
+    ///
+    /// Auf macOS und iOS steckt er in der Einheit selbst, auf dem Apple TV im
+    /// Zwischenlager. Die Aufrufer - Diagramm, CSV-Export, Upload - sollen den
+    /// Unterschied nicht kennen müssen.
+    public func track(for record: SessionRecord) -> RideTrack? {
+        RideTrack(samples: record.samples) ?? tracks.track(for: record.id)
+    }
+
+    /// Die Punkte derselben Spur, für Diagramm und Export.
+    public func samples(for record: SessionRecord) -> [RideSample] {
+        record.samples.isEmpty ? (tracks.track(for: record.id)?.makeSamples() ?? []) : record.samples
     }
 
     /// Alles, was noch nicht beim Server ist - älteste zuerst, damit der
@@ -50,6 +85,9 @@ public final class SessionStore {
     public func markUploaded(id: UUID, at date: Date = Date()) {
         guard let index = sessions.firstIndex(where: { $0.id == id }) else { return }
         sessions[index].uploadedAt = date
+        // Angekommen heißt: der Server hat die Kurve. Das Zwischenlager ist
+        // nur für den Weg dorthin da.
+        tracks.remove(id: id)
         persist()
     }
 
@@ -66,11 +104,13 @@ public final class SessionStore {
 
     public func delete(id: UUID) {
         sessions.removeAll { $0.id == id }
+        tracks.remove(id: id)
         persist()
     }
 
     public func deleteAll() {
         sessions.removeAll()
+        tracks.removeAll()
         persist()
     }
 

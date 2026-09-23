@@ -8,6 +8,7 @@ import {LibraryPage} from "./pages/LibraryPage"
 import {ImprintPage} from "./pages/ImprintPage"
 import {PrivacyPage} from "./pages/PrivacyPage"
 import {ProfilePage} from "./pages/ProfilePage"
+import {SessionDetailPage} from "./pages/SessionDetailPage"
 import {WorkoutDetailPage} from "./pages/WorkoutDetailPage"
 import {WorkoutEditorPage} from "./pages/WorkoutEditorPage"
 
@@ -39,6 +40,7 @@ export function App() {
                 <Route path="programm/:id/bearbeiten" element={<WorkoutEditorPage />} />
                 <Route path="programm/:id" element={<WorkoutDetailPage />} />
                 <Route path="verlauf" element={<HistoryPage />} />
+                <Route path="verlauf/:id" element={<SessionDetailPage />} />
                 <Route path="profil" element={<ProfilePage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

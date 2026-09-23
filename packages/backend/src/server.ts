@@ -46,6 +46,15 @@ export class Server {
 
     jsonParser = bodyParser.json({limit: "1mb"})
     /**
+     * Fuer die wenigen Routen, die eine Messreihe entgegennehmen.
+     *
+     * Eine Einheit mit Sekundenspur ist je Stunde ein paar hundert Kilobyte,
+     * eine lange Ausfahrt sprengt das Megabyte. Die Grenze bleibt trotzdem
+     * eng und gilt nur dort, wo sie gebraucht wird: eine global grosszuegige
+     * Grenze macht aus jeder ungeprueften Route einen Speicherfresser.
+     */
+    largeJsonParser = bodyParser.json({limit: "8mb"})
+    /**
      * Fuer die Zustimmungsseite von OAuth: ein HTML-Formular schickt
      * `application/x-www-form-urlencoded`, nicht JSON. Der Browser des Nutzers
      * laesst sich das nicht ausreden.
@@ -151,6 +160,12 @@ export class Server {
             },
             postJSON: <RequestBody, ResponseBody>(handler: Handler<Options, Route, RequestBody, ResponseBody>) => {
                 this.app.post(path, this.jsonParser, (expressRequest, expressResponse, next) => {
+                    void wrapRequest(options, expressRequest as never, expressResponse as never, next, handler)
+                })
+            },
+            /** Wie `postJSON`, aber mit der groesseren Koerpergrenze. */
+            postLargeJSON: <RequestBody, ResponseBody>(handler: Handler<Options, Route, RequestBody, ResponseBody>) => {
+                this.app.post(path, this.largeJsonParser, (expressRequest, expressResponse, next) => {
                     void wrapRequest(options, expressRequest as never, expressResponse as never, next, handler)
                 })
             },

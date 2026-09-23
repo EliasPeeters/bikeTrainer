@@ -176,6 +176,7 @@ describe("Einheiten", () => {
             averageHeartRate: 148,
             maxHeartRate: 176,
             createdAt: "2026-09-18T18:30:00.000Z",
+            hasTrack: true,
         }
         const line = sessionLine(session)
         expect(line).toContain("2026-09-18 17:30")
@@ -183,6 +184,34 @@ describe("Einheiten", () => {
         expect(line).toContain("IF 0.90")
         expect(line).toContain("abgebrochen")
         expect(line).toContain("id: 7")
+        expect(line).toContain("Sekundenverlauf")
+    })
+
+    it("erwaehnt keinen Sekundenverlauf, wo keiner ist", () => {
+        // Einheiten aus Version 1.0 haben keine Spur. Ein Modell, das sie
+        // trotzdem ankuendigt, schickt den Nutzer auf eine leere Seite.
+        const session: TrainingSessionResponse = {
+            id: 8,
+            clientID: "def",
+            workoutName: "Grundlage 60",
+            workoutID: null,
+            startedAt: "2026-09-18T17:30:00.000Z",
+            durationSeconds: 3600,
+            completed: true,
+            ftp: 250,
+            averagePower: 170,
+            maxPower: 240,
+            normalizedPower: 175,
+            intensityFactor: 0.7,
+            trainingStressScore: 49,
+            kilojoules: 612,
+            averageCadence: 88,
+            averageHeartRate: 130,
+            maxHeartRate: 150,
+            createdAt: "2026-09-18T18:30:00.000Z",
+            hasTrack: false,
+        }
+        expect(sessionLine(session)).not.toContain("Sekundenverlauf")
     })
 })
 

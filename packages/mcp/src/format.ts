@@ -158,6 +158,11 @@ export function sessionLine(session: TrainingSessionResponse): string {
     if (session.averageHeartRate !== null && session.averageHeartRate !== undefined) {
         parts.push(`${session.averageHeartRate} bpm ⌀`)
     }
+    if (session.hasTrack) {
+        // Damit ein Modell weiss, dass es zu dieser Einheit eine Sekundenspur
+        // gibt - und nicht behauptet, es gaebe keine.
+        parts.push("Sekundenverlauf")
+    }
     if (!session.completed) {
         parts.push("abgebrochen")
     }

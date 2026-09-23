@@ -5,6 +5,13 @@ import WattwerkCore
 struct RideSummaryView: View {
     let model: AppModel
     let record: SessionRecord
+    @State private var shownMetrics: Set<RideMetric> = [.power]
+
+    /// Hier liegt die Spur immer in der Einheit selbst: gespeichert - und damit
+    /// auf dem Apple TV ausgedünnt - wird erst, wenn jemand „Speichern“ drückt.
+    private var availableMetrics: [RideMetric] {
+        RideMetric.allCases.filter { $0.isPresent(in: record.samples) }
+    }
 
     var body: some View {
         ScrollView {
@@ -36,6 +43,19 @@ struct RideSummaryView: View {
                 }
                 .padding(18)
                 .cardBackground()
+
+                if record.samples.count > 1 {
+                    VStack(alignment: .leading, spacing: 12) {
+                        if availableMetrics.count > 1 {
+                            RideMetricPicker(available: availableMetrics, selection: $shownMetrics)
+                        }
+                        RideTrackChart(
+                            samples: record.samples,
+                            ftp: record.ftp,
+                            metrics: shownMetrics.isEmpty ? [.power] : shownMetrics
+                        )
+                    }
+                }
 
                 if !record.timeInZone.isEmpty {
                     ZoneBreakdown(buckets: record.timeInZone, total: record.duration)

@@ -796,3 +796,52 @@ button.primary.wide { width: 100%; padding: 0.75rem; }
         align-items: flex-start;
     }
 }
+
+/* Sekundenverlauf einer Einheit */
+
+.badge.track { background: rgba(78, 149, 248, 0.18); color: #a9caff; }
+
+/* Ein Link, der wie der Text daneben aussieht - die ganze Zeile ist anklickbar
+   genug, der Name muss dafür nicht blau werden. */
+a.plain { color: inherit; text-decoration: none; }
+a.plain:hover { text-decoration: underline; }
+
+.metric-toggles { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.metric-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.3rem 0.7rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+.metric-toggle:hover { background: var(--surface-raised); }
+.metric-toggle.active { background: var(--surface-raised); color: var(--text); border-color: transparent; }
+.metric-toggle i { width: 0.55rem; height: 0.55rem; border-radius: 999px; opacity: 0.35; }
+.metric-toggle.active i { opacity: 1; }
+
+.track-chart { position: relative; margin: 0.5rem 0 1rem; }
+.track-chart svg { display: block; width: 100%; background: rgba(0, 0, 0, 0.25); border-radius: 8px; }
+.track-axis { fill: var(--text-muted); font-size: 0.68rem; }
+
+.track-readout {
+    display: flex;
+    gap: 1.1rem;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    /* Feste Höhe, damit die Karte beim Fahren mit der Maus nicht springt. */
+    min-height: 1.6rem;
+}
+.track-readout-time { color: var(--text-muted); font-variant-numeric: tabular-nums; min-width: 4rem; }
+.track-readout-value { display: inline-flex; align-items: center; gap: 0.4rem; font-variant-numeric: tabular-nums; }
+.track-readout-value i { width: 0.55rem; height: 0.55rem; border-radius: 2px; }
+
+/* Auf dem Telefon passt eine vierspaltige Tabelle nicht in die Breite. Sie
+   umzubrechen machte aus Zahlen Absätze - also darf sie schieben. */
+.table-scroll { overflow-x: auto; }

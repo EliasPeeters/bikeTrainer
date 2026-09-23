@@ -54,8 +54,15 @@ public struct SessionPayload: Codable, Hashable, Sendable {
     public var averageCadence: Int?
     public var averageHeartRate: Int?
     public var maxHeartRate: Int?
+    /// Der Sekundenverlauf, sofern das Gerät ihn noch hat.
+    ///
+    /// Wird als eigenes Argument übergeben und nicht aus `record.samples`
+    /// gelesen: auf dem Apple TV liegt die Spur nicht in der Einheit, sondern
+    /// daneben (siehe `SessionStore`). Fehlt sie, lässt der Server eine bereits
+    /// gespeicherte Kurve in Ruhe - ein Nachtrag darf sie nicht löschen.
+    public var track: RideTrack?
 
-    public init(_ record: SessionRecord) {
+    public init(_ record: SessionRecord, track: RideTrack? = nil) {
         clientID = record.id.uuidString.lowercased()
         workoutName = record.workoutName
         workoutID = record.workoutID?.uuidString.lowercased()
@@ -72,6 +79,7 @@ public struct SessionPayload: Codable, Hashable, Sendable {
         averageCadence = record.averageCadence
         averageHeartRate = record.averageHeartRate
         maxHeartRate = record.maxHeartRate
+        self.track = track
     }
 }
 

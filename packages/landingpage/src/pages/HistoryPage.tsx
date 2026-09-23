@@ -1,5 +1,6 @@
 import type {TrainingSessionListResponse} from "@wattwerk/shared"
 import {useCallback, useEffect, useState} from "react"
+import {Link} from "react-router-dom"
 import {api} from "../api/client"
 import {formatClock, formatDate} from "../components/workoutVisuals"
 
@@ -75,9 +76,17 @@ export function HistoryPage() {
                             {data.sessions.map((session) => (
                                 <tr key={session.id}>
                                     <td>
-                                        <strong>{session.workoutName}</strong>
+                                        {/* Der Name führt zur Kurve. Eine eigene
+                                            Spalte mit „Details“ wäre eine Spalte
+                                            mehr für dieselbe Aussage. */}
+                                        <Link className="plain" to={`/app/verlauf/${session.id}`}>
+                                            <strong>{session.workoutName}</strong>
+                                        </Link>
                                         {!session.completed && (
                                             <span className="badge"> abgebrochen</span>
+                                        )}
+                                        {session.hasTrack && (
+                                            <span className="badge track"> Verlauf</span>
                                         )}
                                         <br />
                                         <span className="muted tiny">{formatDate(session.startedAt)}</span>
