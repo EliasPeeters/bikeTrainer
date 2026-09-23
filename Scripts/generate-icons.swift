@@ -70,11 +70,45 @@ func solid(_ color: CIColor, _ size: CGSize) -> CIImage {
     CIImage(color: color).cropped(to: CGRect(origin: .zero, size: size))
 }
 
+/// Schneidet den hellen Grat weg, den die Vorlage am Rand des Squircles trägt.
+/// Die Silhouette wird um ein paar Pixel verkleinert; weil die Maske aus dem
+/// Alphakanal der Vorlage selbst stammt, folgt die neue Kante exakt der
+/// Squircle-Form. Ohne das liegt um das fast schwarze Symbol ein grauer Saum.
+func trimEdge(_ source: CIImage, by pixels: Double) -> CIImage {
+    let extent = source.extent
+    let fromAlpha = CIVector(x: 0, y: 0, z: 0, w: 1)
+    // Alpha in eine Graustufenmaske übersetzen, verkleinern und wieder auf
+    // volle Deckung ziehen - sonst multipliziert sich die Maske ein zweites Mal
+    // auf das Alpha der Vorlage und das Symbol wird durchscheinend.
+    let mask = source
+        .applyingFilter("CIColorMatrix", parameters: [
+            "inputRVector": fromAlpha, "inputGVector": fromAlpha,
+            "inputBVector": fromAlpha, "inputAVector": fromAlpha,
+        ])
+        .cropped(to: extent)
+        .applyingFilter("CIMorphologyMinimum", parameters: [kCIInputRadiusKey: pixels])
+        .applyingFilter("CIColorMatrix", parameters: [
+            "inputRVector": CIVector(x: 1.6, y: 0, z: 0, w: 0),
+            "inputGVector": CIVector(x: 0, y: 1.6, z: 0, w: 0),
+            "inputBVector": CIVector(x: 0, y: 0, z: 1.6, w: 0),
+            "inputAVector": CIVector(x: 0, y: 0, z: 0, w: 1.6),
+        ])
+        .applyingFilter("CIColorClamp")
+        .cropped(to: extent)
+    return source
+        .applyingFilter("CIBlendWithMask", parameters: [
+            kCIInputBackgroundImageKey: CIImage.empty(),
+            kCIInputMaskImageKey: mask,
+        ])
+        .cropped(to: extent)
+}
+
 // MARK: macOS
 
 // Die Quelle hat den Squircle samt transparentem Rand schon - genau die Form,
-// die macOS erwartet. Also nur skalieren, nichts hinzufügen.
-let macSource = load("app logo.png")
+// die macOS erwartet. Also nur skalieren, nichts hinzufügen. Einzig der helle
+// Grat an der Kante muss weg, der sonst als grauer Rahmen um das Symbol liegt.
+let macSource = trimEdge(load("app logo.png"), by: 5)
 let macSizes: [(Int, Int)] = [(16, 1), (16, 2), (32, 1), (32, 2), (128, 1), (128, 2), (256, 1), (256, 2), (512, 1), (512, 2)]
 for (points, scale) in macSizes {
     let pixels = CGFloat(points * scale)
@@ -127,7 +161,7 @@ func buildStack(_ stack: String, size: CGSize, scale: Int, blur: Double) {
     let pixelSize = CGSize(width: size.width * CGFloat(scale), height: size.height * CGFloat(scale))
     writeLayer(backdrop(tvSource, size: pixelSize, blur: blur * Double(scale)),
                size: pixelSize, stack: stack, layer: "Back", scale: scale)
-    writeLayer(fit(mark, pixelSize, margin: 0.04, background: CIImage.empty()),
+    writeLayer(fit(mark, pixelSize, margin: 0.14, background: CIImage.empty()),
                size: pixelSize, stack: stack, layer: "Front", scale: scale)
 }
 
