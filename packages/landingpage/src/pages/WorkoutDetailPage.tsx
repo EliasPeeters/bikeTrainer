@@ -3,6 +3,8 @@ import {useEffect, useState} from "react"
 import {Link, useNavigate, useParams} from "react-router-dom"
 import {useAuth} from "../api/auth"
 import {api, ApiError} from "../api/client"
+import {usePlan} from "../api/plan"
+import {WEEKDAYS} from "../components/weekPlan"
 import {WorkoutProfileChart} from "../components/WorkoutProfileChart"
 import {formatClock, formatDuration, targetWatts, zoneColor} from "../components/workoutVisuals"
 
@@ -14,6 +16,7 @@ export function WorkoutDetailPage() {
     const [collections, setCollections] = useState<CollectionDTO[]>([])
     const [error, setError] = useState<string | null>(null)
     const [notice, setNotice] = useState<string | null>(null)
+    const plan = usePlan()
 
     useEffect(() => {
         let cancelled = false
@@ -190,6 +193,40 @@ export function WorkoutDetailPage() {
                     </select>
                 )}
             </div>
+
+            {plan.entries !== null && (
+                <section className="card block">
+                    <div className="section-head small">
+                        <h2>Einplanen</h2>
+                        <span className="muted tiny">Der Wochenplan gilt jede Woche.</span>
+                    </div>
+                    {/* Ein Knopf je Tag, gedrückt heißt eingeplant. Dasselbe
+                        Programm liegt so mit ein paar Klicks auf mehreren Tagen. */}
+                    <div className="weekday-toggles" role="group" aria-label="Wochentage">
+                        {WEEKDAYS.map(({day, short, name}) => {
+                            const entry = plan.entries?.find(
+                                (candidate) => candidate.weekday === day && candidate.workoutID === workout.id
+                            )
+                            return (
+                                <button
+                                    key={day}
+                                    type="button"
+                                    className={entry ? "weekday-toggle active" : "weekday-toggle"}
+                                    aria-pressed={entry !== undefined}
+                                    title={name}
+                                    onClick={() => (entry ? plan.remove(entry.id) : plan.add(workout, day))}
+                                >
+                                    {short}
+                                </button>
+                            )
+                        })}
+                        <Link className="muted tiny" to="/app/wochenplan">
+                            Zum Wochenplan
+                        </Link>
+                    </div>
+                    {plan.error !== null && <div className="message error">{plan.error}</div>}
+                </section>
+            )}
 
             <section className="card block">
                 <h2>Ablauf</h2>

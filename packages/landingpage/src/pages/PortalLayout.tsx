@@ -4,6 +4,7 @@ import {useAuth} from "../api/auth"
 const LINKS = [
     {to: "/app", label: "Übersicht", end: true},
     {to: "/app/bibliothek", label: "Bibliothek"},
+    {to: "/app/wochenplan", label: "Wochenplan"},
     {to: "/app/verlauf", label: "Verlauf"},
     {to: "/app/profil", label: "Profil"},
 ]

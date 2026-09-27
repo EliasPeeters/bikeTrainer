@@ -9,10 +9,12 @@ import type {
     CreateApiKeyResponse,
     DiscoveryResponse,
     LoginRequest,
+    PlanResponse,
     RefreshTokenResponse,
     RegisterRequest,
     RideTrackResponse,
     SaveCollectionRequest,
+    SavePlanRequest,
     SaveWorkoutRequest,
     TrainingSessionListResponse,
     TrainingSessionResponse,
@@ -219,8 +221,10 @@ export const api = {
     deleteConnection(id: number) {
         return call<{deleted: boolean}>(`/me/connections/${id}`, {method: "DELETE"})
     },
-    sessions(limit = 50) {
-        return call<TrainingSessionListResponse>("/sessions", {query: {limit}})
+    /** `range` grenzt auf einen Zeitraum ein, etwa eine Woche im Wochenplan;
+        `to` gehört nicht mehr dazu. */
+    sessions(limit = 50, range: {from?: string; to?: string} = {}) {
+        return call<TrainingSessionListResponse>("/sessions", {query: {limit, ...range}})
     },
     session(id: number) {
         return call<TrainingSessionResponse>(`/sessions/${id}`)
@@ -232,6 +236,13 @@ export const api = {
     },
     deleteSession(id: number) {
         return call<{deleted: boolean}>(`/sessions/${id}`, {method: "DELETE"})
+    },
+    plan() {
+        return call<PlanResponse>("/plan")
+    },
+    /** Ersetzt den ganzen Plan - einzelne Einträge gibt es auf dem Draht nicht. */
+    savePlan(body: SavePlanRequest) {
+        return call<PlanResponse>("/plan", {method: "PUT", body})
     },
     discover() {
         return call<DiscoveryResponse>("/discover")

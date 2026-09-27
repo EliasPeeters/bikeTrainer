@@ -63,7 +63,7 @@ statt im Handler auf `undefined` zu prüfen.
 | POST | `/oauth/token` | – | Code gegen Tokens, und Auffrischen |
 | POST | `/oauth/register` | – | Dynamic Client Registration |
 | POST | `/sessions` | ja | Gefahrene Einheit hochladen, mit oder ohne Sekundenverlauf |
-| GET | `/sessions` | ja | Verlauf plus Wochenbelastung (ohne Sekundenverlauf) |
+| GET | `/sessions` | ja | Verlauf plus Wochenbelastung (ohne Sekundenverlauf); `from`/`to` grenzen optional auf einen Zeitraum ein |
 | GET | `/sessions/:id` | ja | Einzelne Einheit |
 | GET | `/sessions/:id/track` | ja | Der Sekundenverlauf dieser Einheit |
 | DELETE | `/sessions/:id` | ja | Einheit löschen, samt Sekundenverlauf |

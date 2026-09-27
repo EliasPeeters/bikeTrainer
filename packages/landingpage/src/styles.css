@@ -845,3 +845,122 @@ a.plain:hover { text-decoration: underline; }
 /* Auf dem Telefon passt eine vierspaltige Tabelle nicht in die Breite. Sie
    umzubrechen machte aus Zahlen Absätze - also darf sie schieben. */
 .table-scroll { overflow-x: auto; }
+
+/* Wochenplan */
+
+.week-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.75rem;
+    margin-bottom: 1.25rem;
+}
+.week-nav > button.ghost:not(.tiny) { font-size: 1.2rem; line-height: 1; padding: 0.45rem 0.8rem; }
+.week-nav-label { display: flex; flex-direction: column; align-items: center; flex: 1; line-height: 1.35; }
+.week-nav-today { margin-left: 0.25rem; }
+
+.plan-hint { margin: -0.75rem 0 1rem; }
+
+.plan-days { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.75rem; }
+.plan-day {
+    display: grid;
+    grid-template-columns: 8.5rem 1fr;
+    gap: 1rem;
+    padding: 0.9rem 1rem;
+    align-items: start;
+}
+.plan-day.today { border-color: rgba(78, 149, 248, 0.55); background: linear-gradient(0deg, rgba(78, 149, 248, 0.06), rgba(78, 149, 248, 0.06)), var(--surface); }
+.plan-day.today .plan-day-head strong,
+.plan-day.today .plan-day-head span { color: var(--accent); }
+.plan-day-head { display: flex; flex-direction: column; line-height: 1.35; padding-top: 0.35rem; }
+.plan-day-body { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: stretch; }
+
+.plan-entry {
+    width: 15rem;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.plan-entry .profile { border-radius: 0; }
+.plan-entry.done { border-color: rgba(76, 203, 122, 0.6); }
+.plan-entry.missed { opacity: 0.55; }
+.plan-entry-body { padding: 0.6rem 0.75rem 0.7rem; display: flex; flex-direction: column; gap: 0.3rem; }
+.plan-entry-title { display: flex; gap: 0.4rem; align-items: baseline; font-size: 0.92rem; }
+.plan-entry-title strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plan-check { color: var(--positive); font-weight: 700; }
+.plan-entry-actions { display: flex; gap: 0.4rem; align-items: center; margin-top: 0.2rem; }
+.plan-entry-actions select { flex: 1; min-width: 0; font-size: 0.8rem; padding: 0.25rem 0.4rem; }
+.danger-text { color: var(--negative); }
+
+.plan-extra {
+    width: 15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    font-size: 0.88rem;
+}
+.plan-extra .badge { align-self: flex-start; }
+
+.plan-add {
+    min-width: 11rem;
+    min-height: 4.5rem;
+    border: 1.5px dashed var(--border);
+    border-radius: 11px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.plan-add:hover { color: var(--text); border-color: var(--text-muted); }
+
+.plan-today { display: flex; gap: 1rem; flex-wrap: wrap; }
+
+.weekday-toggles { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+.weekday-toggle {
+    width: 2.6rem;
+    height: 2.3rem;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text-muted);
+    font-weight: 700;
+    cursor: pointer;
+}
+.weekday-toggle:hover { color: var(--text); background: var(--surface-raised); }
+.weekday-toggle.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.weekday-toggles a { margin-left: 0.5rem; }
+
+dialog.picker {
+    width: min(58rem, calc(100vw - 2rem));
+    max-height: calc(100vh - 4rem);
+    padding: 1.25rem;
+    background: var(--background);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+}
+dialog.picker:not([open]) { display: none; }
+dialog.picker::backdrop { background: rgba(0, 0, 0, 0.6); }
+.picker-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.picker-head h2 { margin: 0; font-size: 1.2rem; }
+.picker-body { overflow-y: auto; }
+.picker-group { font-size: 0.95rem; margin: 0.4rem 0 0.6rem; color: var(--text-muted); }
+.picker-body section { margin-bottom: 1.1rem; }
+
+@media (max-width: 640px) {
+    .plan-day { grid-template-columns: 1fr; gap: 0.6rem; }
+    .plan-day-head { flex-direction: row; gap: 0.6rem; align-items: baseline; padding-top: 0; }
+    .plan-entry, .plan-extra { width: 100%; }
+    .plan-add { width: 100%; min-height: 3rem; }
+    .week-nav-today { display: none; }
+}

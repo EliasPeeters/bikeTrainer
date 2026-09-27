@@ -165,6 +165,51 @@ describe("GET /sessions", () => {
         expect(list.body.stressLastSevenDays).toBe(80)
     })
 
+    it("grenzt mit from und to auf einen Zeitraum ein - fuer eine Woche im Wochenplan", async () => {
+        const token = await registerAndGetToken()
+        const starts = ["2026-09-20T21:30:00.000Z", "2026-09-21T06:00:00.000Z", "2026-09-27T21:59:00.000Z", "2026-09-28T08:00:00.000Z"]
+        for (const [index, startedAt] of starts.entries()) {
+            await request(app)
+                .post("/sessions")
+                .set("Authorization", `Bearer ${token}`)
+                .send(payload({clientID: `eeeeeeee-1111-4111-8111-11111111111${index}`, startedAt}))
+                .expect(201)
+        }
+
+        // Montag 0 Uhr bis Montag 0 Uhr, Berliner Sommerzeit - `to` gehoert
+        // schon zur naechsten Woche. Die erste Einheit ist Sonntag 23:30 in
+        // Berlin, die dritte Sonntag 23:59: eine davor, eine gerade noch drin.
+        const week = await request(app)
+            .get("/sessions")
+            .query({from: "2026-09-21T00:00:00+02:00", to: "2026-09-28T00:00:00+02:00"})
+            .set("Authorization", `Bearer ${token}`)
+        expect(week.status).toBe(200)
+        expect(week.body.sessions.map((session: {startedAt: string}) => session.startedAt)).toEqual([
+            "2026-09-27T21:59:00.000Z",
+            "2026-09-21T06:00:00.000Z",
+        ])
+
+        const onlyFrom = await request(app)
+            .get("/sessions")
+            .query({from: "2026-09-27T00:00:00Z"})
+            .set("Authorization", `Bearer ${token}`)
+        expect(onlyFrom.body.sessions).toHaveLength(2)
+
+        // Ohne beide wie bisher: alles.
+        const all = await request(app).get("/sessions").set("Authorization", `Bearer ${token}`)
+        expect(all.body.sessions).toHaveLength(4)
+    })
+
+    it("weist einen unlesbaren Zeitraum ab", async () => {
+        const token = await registerAndGetToken()
+        const response = await request(app)
+            .get("/sessions")
+            .query({from: "letzte Woche"})
+            .set("Authorization", `Bearer ${token}`)
+        expect(response.status).toBe(400)
+        expect(response.body.error).toBe("INVALID_BODY")
+    })
+
     it("zeigt keine fremden Einheiten", async () => {
         const tokenA = await registerAndGetToken()
         const tokenB = await registerAndGetToken()

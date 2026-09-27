@@ -3,7 +3,10 @@ import {useEffect, useState} from "react"
 import {Link, useNavigate} from "react-router-dom"
 import {useAuth} from "../api/auth"
 import {api} from "../api/client"
+import {usePlan} from "../api/plan"
+import {WorkoutCard} from "../components/WorkoutCard"
 import {WorkoutRow} from "../components/WorkoutRow"
+import {isoWeekday, weekdayName} from "../components/weekPlan"
 import {formatClock, formatDate} from "../components/workoutVisuals"
 
 export function DashboardPage() {
@@ -12,6 +15,7 @@ export function DashboardPage() {
     const [discovery, setDiscovery] = useState<DiscoveryResponse | null>(null)
     const [sessions, setSessions] = useState<TrainingSessionListResponse | null>(null)
     const [error, setError] = useState<string | null>(null)
+    const plan = usePlan()
 
     useEffect(() => {
         let cancelled = false
@@ -36,6 +40,18 @@ export function DashboardPage() {
 
     const recommended = discovery?.rows.filter((row) => row.key !== "own").slice(0, 2) ?? []
 
+    // Heute, sonst der nächste Tag dieser Woche, an dem etwas steht. Ob es
+    // schon gefahren ist, zeigt die Wochenplan-Seite; hier geht es nur darum,
+    // was als Nächstes dran ist.
+    const today = isoWeekday(new Date())
+    const planned = plan.entries ?? []
+    const todays = planned.filter((entry) => entry.weekday === today)
+    const nextDay = planned
+        .map((entry) => entry.weekday)
+        .filter((day) => day > today)
+        .sort((a, b) => a - b)[0]
+    const upcoming = todays.length > 0 ? todays : planned.filter((entry) => entry.weekday === nextDay)
+
     return (
         <>
             <div className="section-head">
@@ -49,6 +65,28 @@ export function DashboardPage() {
             </div>
 
             {error !== null && <div className="message error">{error}</div>}
+
+            {upcoming.length > 0 && (
+                <section className="row">
+                    <header className="row-header">
+                        <h2>{todays.length > 0 ? "Heute im Plan" : `Heute frei. Als Nächstes: ${weekdayName(nextDay)}`}</h2>
+                        <Link to="/app/wochenplan" className="muted tiny">
+                            Zum Wochenplan
+                        </Link>
+                    </header>
+                    <div className="plan-today">
+                        {upcoming.map((entry) =>
+                            entry.workout !== null ? (
+                                <WorkoutCard
+                                    key={entry.id}
+                                    workout={entry.workout}
+                                    onClick={() => navigate(`/app/programm/${entry.workoutID}`)}
+                                />
+                            ) : null
+                        )}
+                    </div>
+                </section>
+            )}
 
             <div className="stat-grid">
                 <Stat label="Belastung diese Woche" value={`${sessions?.stressLastSevenDays ?? 0}`} unit="TSS" />

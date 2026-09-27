@@ -54,7 +54,7 @@ docker compose -f docker-compose-landingpage.yml up --build
 
 Danach liegt es auf <http://localhost:8089>: Startseite mit Registrierung und
 Anmeldung, dahinter unter `/app` das Portal mit Übersicht, Bibliothek,
-Programm-Editor, Ordnern, Verlauf und Profil.
+Programm-Editor, Wochenplan, Ordnern, Verlauf und Profil.
 
 ### MCP-Server
 
@@ -178,7 +178,9 @@ geht aus dem Plan heraus (dieselben Kartenreihen wie in der Bibliothek) oder
 auf der Seite eines Programms über *Einplanen*; ein Programm lässt sich so mit
 ein paar Klicks auf mehrere Tage legen. Gefahrene Einheiten haken den Eintrag
 ab, auch wenn der Dienstag ein Mittwoch wurde. Oben in *Training* steht, was
-heute dran ist. Auf Mac und Apple TV, mit Konto auf allen Geräten gleich.
+heute dran ist. Auf Mac, Apple TV und im Web-Portal, mit Konto überall gleich.
+Im Portal lässt sich außerdem Woche für Woche zurückblättern: was geplant war,
+was davon gefahren wurde und was sonst noch dazukam.
 
 **Trainer.** FTMS (0x1826): Indoor Bike Data lesen, Control Point schreiben,
 also echte ERG-Steuerung. Fällt auf Cycling Power (0x1818) zurück, wenn der

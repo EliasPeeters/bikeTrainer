@@ -1,5 +1,6 @@
 import {Navigate, Route, Routes} from "react-router-dom"
 import {useAuth} from "./api/auth"
+import {PlanPage} from "./pages/PlanPage"
 import {PortalLayout} from "./pages/PortalLayout"
 import {DashboardPage} from "./pages/DashboardPage"
 import {HistoryPage} from "./pages/HistoryPage"
@@ -36,6 +37,7 @@ export function App() {
             <Route path="/app" element={user === null ? <Navigate to="/" replace /> : <PortalLayout />}>
                 <Route index element={<DashboardPage />} />
                 <Route path="bibliothek" element={<LibraryPage />} />
+                <Route path="wochenplan" element={<PlanPage />} />
                 <Route path="programm/neu" element={<WorkoutEditorPage />} />
                 <Route path="programm/:id/bearbeiten" element={<WorkoutEditorPage />} />
                 <Route path="programm/:id" element={<WorkoutDetailPage />} />

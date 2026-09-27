@@ -46,9 +46,11 @@ ob die Werte plausibel sind. Alles Weitere hängt davon ab.
 * **Trainingsplan über Wochen** mit Belastungsverlauf. Die Wochenvorlage gibt
   es seit 1.1; was fehlt, ist ein Aufbau über mehrere Wochen (Aufbau,
   Entlastung) und einzelne Wochen, die von der Vorlage abweichen.
-* **Wochenplan im Web-Portal und als MCP-Werkzeug.** Die Route `/plan` steht,
-  Portal und MCP-Server nutzen sie noch nicht. Gerade für ein Sprachmodell wäre
-  „plan mir eine Woche“ naheliegend.
+* **Wochenplan als MCP-Werkzeug.** App und Portal nutzen `/plan`, der
+  MCP-Server noch nicht. Gerade für ein Sprachmodell wäre „plan mir eine Woche“
+  naheliegend.
+* **Durch die Wochen blättern in den Apps.** Das Portal kann es schon; in den
+  Apps gibt es nur die laufende Woche.
 * **iCloud-Abgleich**, damit am Mac gebaute Programme auf dem Apple TV auftauchen.
   Heute ist jedes Gerät eine Insel. `NSUbiquitousKeyValueStore` passt genau auf
   die bestehende `KeyValueStorage`-Schnittstelle.

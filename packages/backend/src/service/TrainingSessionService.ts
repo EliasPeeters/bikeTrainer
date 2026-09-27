@@ -4,7 +4,7 @@ import {
     TrainingSessionPayload,
     TrainingSessionResponse,
 } from "@wattwerk/shared"
-import {Op} from "sequelize"
+import {Op, WhereOptions} from "sequelize"
 import {DBTrainingSession} from "../db/DBTrainingSession"
 import {DBTrainingSessionTrack} from "../db/DBTrainingSessionTrack"
 import {DBWorkout} from "../db/DBWorkout"
@@ -106,8 +106,26 @@ export class TrainingSessionService {
             .route("/sessions", {authenticated: true, includeUser: true})
             .get<TrainingSessionListResponse>(async (request) => {
                 const limit = parseLimit(request.query.limit)
+                // `from`/`to` sind optional und fuer den Wochenplan im Portal da:
+                // eine vergangene Woche liegt sonst irgendwo jenseits der
+                // letzten 50 Einheiten. Ohne beide antwortet die Route wie vor
+                // 1.1 - die Apps schicken sie nicht.
+                const from = parseDate(request.query.from)
+                const to = parseDate(request.query.to)
+                if (from === null || to === null) {
+                    return failure(400, "INVALID_BODY", "from und to müssen Zeitpunkte im ISO-8601-Format sein.")
+                }
+                const range: WhereOptions<DBTrainingSession> =
+                    from !== undefined || to !== undefined
+                        ? {
+                              startedAt: {
+                                  ...(from !== undefined ? {[Op.gte]: from} : {}),
+                                  ...(to !== undefined ? {[Op.lt]: to} : {}),
+                              },
+                          }
+                        : {}
                 const sessions = await DBTrainingSession.findAll({
-                    where: {userID: request.user.id},
+                    where: {userID: request.user.id, ...range},
                     order: [["startedAt", "DESC"]],
                     limit,
                 })
@@ -223,6 +241,18 @@ async function knownWorkoutID(workoutID: string | null | undefined): Promise<str
     }
     const exists = await DBWorkout.findByPk(workoutID, {attributes: ["id"]})
     return exists === null ? null : exists.id
+}
+
+/** `undefined`: nicht angegeben. `null`: angegeben, aber kein Zeitpunkt. */
+function parseDate(raw: unknown): Date | undefined | null {
+    if (raw === undefined || raw === "") {
+        return undefined
+    }
+    if (typeof raw !== "string") {
+        return null
+    }
+    const date = new Date(raw)
+    return Number.isNaN(date.getTime()) ? null : date
 }
 
 function parseLimit(raw: unknown): number {
