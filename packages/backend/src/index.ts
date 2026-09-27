@@ -3,6 +3,7 @@ import {waitForDatabase} from "./db/db"
 // Nur wegen der Nebenwirkung: registriert Modelle und Verknuepfungen.
 import "./db/DBApiKey"
 import "./db/DBOAuth"
+import "./db/DBPlanEntry"
 import "./db/DBTrainingSession"
 import "./db/DBTrainingSessionTrack"
 import "./db/DBCollection"
@@ -15,6 +16,7 @@ import {DiscoveryService} from "./service/DiscoveryService"
 import {HealthService} from "./service/HealthService"
 import {OAuthService} from "./service/OAuthService"
 import {PasswordService} from "./service/PasswordService"
+import {PlanService} from "./service/PlanService"
 import {ProfileService} from "./service/ProfileService"
 import {TokenService} from "./service/TokenService"
 import {TrainingSessionService} from "./service/TrainingSessionService"
@@ -44,6 +46,7 @@ export function createServer(): Server {
     new TrainingSessionService().configure(server)
     new WorkoutService().configure(server)
     new CollectionService().configure(server)
+    new PlanService().configure(server)
     new DiscoveryService().configure(server)
 
     // Nach allen Routen: 404 und Fehlerbehandlung.

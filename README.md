@@ -172,6 +172,14 @@ die Abweichung), Restzeit im Block, nächster Block, Trittfrequenz mit
 Zielkorridor, Puls, Ø/NP/kJ, Profil mit Laufmarke. Pause, Block vor/zurück und
 ein Intensitätsregler (±5 %), der die Vorgabe live skaliert.
 
+**Wochenplan.** Einmal festlegen, was an welchem Tag dran ist – „dienstags
+Sweet Spot, samstags Grundlage“ –, danach gilt der Plan jede Woche. Einplanen
+geht aus dem Plan heraus (dieselben Kartenreihen wie in der Bibliothek) oder
+auf der Seite eines Programms über *Einplanen*; ein Programm lässt sich so mit
+ein paar Klicks auf mehrere Tage legen. Gefahrene Einheiten haken den Eintrag
+ab, auch wenn der Dienstag ein Mittwoch wurde. Oben in *Training* steht, was
+heute dran ist. Auf Mac und Apple TV, mit Konto auf allen Geräten gleich.
+
 **Trainer.** FTMS (0x1826): Indoor Bike Data lesen, Control Point schreiben,
 also echte ERG-Steuerung. Fällt auf Cycling Power (0x1818) zurück, wenn der
 Trainer kein FTMS kann – dann wird das Ziel nur angezeigt. Pulsgurt über den
@@ -213,7 +221,7 @@ HTTP-Routen – keine zweite Geschäftslogik, die auseinanderlaufen könnte.
 | Ziele | Relativ zur FTP | Programme überleben Formveränderungen |
 | Editor | Nur Mac/iPad | Strukturierte Workouts mit der Fernbedienung zu tippen ist Quälerei |
 | tvOS-Speicher | Nur Zusammenfassungen | Auf dem Apple TV gibt es kein beschreibbares Dokumentverzeichnis, nur ~500 kB `UserDefaults` |
-| API-Umfang | Konto, Profil, Einheiten, Programme, Ordner | Genau das, was App und Portal brauchen |
+| API-Umfang | Konto, Profil, Einheiten, Programme, Ordner, Wochenplan | Genau das, was App und Portal brauchen |
 | Zugangsschlüssel | Eigene Tabelle statt langlebiger Tokens | Ein Auffrischungstoken lässt sich nur zurückziehen, indem man das Geheimnis wechselt – und wirft damit auch alle Apps raus |
 | Schlüssel-Rechte | Nur `read` und `full`, `read` heißt GET | Feingranulare Rechte, die niemand versteht, werden auf „alles" gestellt |
 | OAuth-Server | In der API, nicht daneben | Die Nutzer liegen dort. Ein zweiter Ort für Identitäten wäre der Anfang von zweien, die auseinanderlaufen |
@@ -223,21 +231,23 @@ HTTP-Routen – keine zweite Geschäftslogik, die auseinanderlaufen könnte.
 | MCP-Antworten | Lesbare Zeilen statt JSON | Vierzig Programme als JSON sind hunderttausend Zeichen Blöcke, von denen fast nichts gebraucht wird. Einzelne Programme gibt es auf Wunsch roh |
 | Anmeldung | E-Mail und Passwort, keine Mailbestätigung | Es gibt keinen Mailversand, und eine Spalte ohne Wert lädt nur dazu ein, sich auf sie zu verlassen |
 | Sichtbarkeit | Privat, bis freigegeben | Teilen ist eine Entscheidung, kein Standard |
+| Wochenplan | Eine Vorlage je Wochentag, kein Kalender | „Dienstags Sweet Spot“ ist eine Gewohnheit, kein Termin. Einzelne Wochen umzuplanen wäre ein zweites Datenmodell für einen Fall, den „auf anderen Tag legen“ schon abdeckt |
+| Plan auf dem Draht | Immer der ganze Plan auf einmal | Eine Handvoll Zeilen. Einzelne Einträge über das Netz bräuchten Grabsteine, damit ein gelöschter Dienstag nicht vom nächsten Gerät zurückkommt |
 | Ordner und Playlists | Ein Begriff: Sammlung | Zwei wären zwei Datenmodelle und die Frage, warum ein Programm nicht in beidem liegen darf |
 | Empfehlungen | Heuristiken, keine gelernten | Es gibt noch keine Nutzungsdaten, aus denen sich etwas lernen ließe |
 | Sekundenspur | Nicht auf dem Server | Ein paar hundert Kilobyte pro Stunde, ohne Nutzen für Verlauf und Belastung. Wenn sie gebraucht wird, bekommt sie eine eigene Tabelle |
 
 ## Geprüft und nicht geprüft
 
-**Geprüft.** Beide App-Targets bauen (Xcode 27, Swift 6), 82 Swift-Tests grün.
-117 Backend-Tests grün, davon 87 gegen eine echte MariaDB. 49 MCP-Tests grün,
+**Geprüft.** Beide App-Targets bauen (Xcode 27, Swift 6), 112 Swift-Tests grün.
+155 Backend-Tests grün, davon 111 gegen eine echte MariaDB. 49 MCP-Tests grün,
 dazu alle zwanzig Werkzeuge einmal von Hand gegen den laufenden Stack — über
 stdio, über HTTP und aus dem fertigen Container heraus. Der OAuth-Ablauf ist
 einmal vollständig von Hand durchgespielt: registrieren, zustimmen, Code
 tauschen, Token benutzen, auffrischen, trennen. Der API-Stack fährt
 mit `docker compose up` hoch, Flyway spielt beide Migrationen ein. Im Browser
 durchgespielt: registrieren, Programm mit Intervallserie bauen, speichern,
-veröffentlichen. Und sechs Swift-Tests fahren den echten `APIClient` gegen den
+veröffentlichen. Und neun Swift-Tests fahren den echten `APIClient` gegen den
 laufenden Server – inklusive der Prüfung, dass der Katalog in App und Datenbank
 Feld für Feld derselbe ist.
 

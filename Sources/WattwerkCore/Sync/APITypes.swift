@@ -111,6 +111,39 @@ public struct DiscoveryPayload: Codable, Hashable, Sendable {
     public var collections: [CollectionPayload]
 }
 
+/// Ein Eintrag im Wochenplan, wie ihn `GET /plan` liefert - passend zu
+/// `PlanEntryDTO` in `@wattwerk/shared`.
+public struct PlanEntryPayload: Codable, Hashable, Sendable {
+    public var id: String
+    /// ISO 8601: 1 = Montag … 7 = Sonntag.
+    public var weekday: Int
+    public var workoutID: String
+    public var workoutName: String
+    public var sortIndex: Int?
+    /// Das Programm, sofern es für diesen Nutzer sichtbar ist.
+    public var workout: WorkoutPayload?
+
+    /// Unbekannte Wochentage oder kaputte Kennungen ergeben `nil` statt eines
+    /// Fehlers - ein einzelner krummer Eintrag soll nicht den Plan kosten.
+    public func makeEntry() -> PlanEntry? {
+        guard let id = UUID(uuidString: id),
+              let workoutID = UUID(uuidString: workoutID),
+              let weekday = Weekday(rawValue: weekday)
+        else { return nil }
+        return PlanEntry(
+            id: id,
+            weekday: weekday,
+            workoutID: workoutID,
+            workoutName: workout?.name ?? workoutName,
+            workout: workout?.makeWorkout()
+        )
+    }
+}
+
+public struct PlanPayload: Codable, Hashable, Sendable {
+    public var entries: [PlanEntryPayload]
+}
+
 /// Der Fehlerkörper der API: ein maschinenlesbarer Code plus ein Satz für Menschen.
 public struct APIErrorPayload: Codable, Hashable, Sendable {
     public var error: String

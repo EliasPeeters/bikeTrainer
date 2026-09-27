@@ -241,4 +241,37 @@ struct APIClientLiveTests {
             _ = try await client.myWorkouts()
         }
     }
+
+    @Test("Der Wochenplan geht hoch und kommt mit aufgelösten Programmen zurück")
+    func planRoundTrip() async throws {
+        let client = self.client
+        _ = try await client.register(email: freshEmail(), password: "geheim12", name: "Swift")
+
+        let own = Workout(name: "Eigener Dienstag", segments: [.steady(1200, percentFTP: 0.88)])
+        _ = try await client.saveWorkout(WorkoutPayload(own))
+        let deletedID = UUID()
+
+        #expect(try await client.plan().isEmpty)
+
+        let entries = [
+            PlanEntry(weekday: .tuesday, workoutID: own.id, workoutName: own.name),
+            PlanEntry(weekday: .tuesday, workoutID: BuiltInWorkouts.tabata.id, workoutName: "Tabata"),
+            PlanEntry(weekday: .saturday, workoutID: deletedID, workoutName: "Längst gelöscht"),
+        ]
+        let saved = try await client.savePlan(entries).compactMap { $0.makeEntry() }
+
+        #expect(saved.map(\.id) == entries.map(\.id))
+        #expect(saved.map(\.weekday) == [.tuesday, .tuesday, .saturday])
+        #expect(saved[0].workout?.name == own.name)
+        #expect(saved[1].workout?.id == BuiltInWorkouts.tabata.id)
+        // Ein Programm, das es nicht gibt, kommt ohne Inhalt, aber mit Namen zurück.
+        #expect(saved[2].workout == nil)
+        #expect(saved[2].workoutName == "Längst gelöscht")
+
+        let reread = try await client.plan().compactMap { $0.makeEntry() }
+        #expect(reread.map(\.id) == saved.map(\.id))
+
+        // Ein leerer Plan leert ihn auch auf dem Server.
+        #expect(try await client.savePlan([]).isEmpty)
+    }
 }

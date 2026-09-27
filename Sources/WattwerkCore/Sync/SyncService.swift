@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// Gleicht Programme, Einheiten und Fahrerprofil mit dem Server ab.
+/// Gleicht Programme, Wochenplan, Einheiten und Fahrerprofil mit dem Server ab.
 ///
 /// Der Abgleich ist absichtlich einfach gehalten und an einer Stelle
 /// beschrieben, statt über die App verteilt: Programme wandern hoch, wenn sie
@@ -25,22 +25,26 @@ public final class SyncService {
     @ObservationIgnored private let library: WorkoutLibrary
     @ObservationIgnored private let sessions: SessionStore
     @ObservationIgnored private let settings: SettingsStore
+    @ObservationIgnored private let plan: TrainingPlanStore
+    @ObservationIgnored private var planPush: Task<Void, Never>?
 
     public init(
         account: AccountStore,
         library: WorkoutLibrary,
         sessions: SessionStore,
-        settings: SettingsStore
+        settings: SettingsStore,
+        plan: TrainingPlanStore
     ) {
         self.account = account
         self.library = library
         self.sessions = sessions
         self.settings = settings
+        self.plan = plan
     }
 
     public var isSyncing: Bool { status == .syncing }
 
-    /// Der vollständige Abgleich: Profil, Programme, Einheiten, Reihen.
+    /// Der vollständige Abgleich: Profil, Programme, Wochenplan, Einheiten, Reihen.
     public func syncAll() async {
         guard account.isSignedIn else { return }
         status = .syncing
@@ -48,6 +52,10 @@ public final class SyncService {
             try await syncProfile()
             try await syncWorkouts()
             try await uploadSessions()
+            // Nach den Programmen, damit der Server die frisch hochgeschobenen
+            // schon kennt und im Plan auflösen kann. Und nach den Einheiten:
+            // ein Problem mit dem Plan soll keine gefahrene Einheit aufhalten.
+            try await syncPlan()
             discovery = try? await account.client.discover()
             status = .done(Date())
         } catch APIError.unauthorized {
@@ -64,6 +72,7 @@ public final class SyncService {
     public func detachFromAccount() {
         library.detachFromAccount()
         sessions.detachFromAccount()
+        plan.detachFromAccount()
         settings.markProfileDetached()
         discovery = nil
         status = .idle
@@ -88,6 +97,33 @@ public final class SyncService {
         do {
             try await uploadSessions()
             status = .done(Date())
+        } catch APIError.unauthorized {
+            account.logout()
+            status = .failed("Die Anmeldung ist abgelaufen.")
+        } catch {
+            status = .failed((error as? APIError)?.errorDescription ?? error.localizedDescription)
+        }
+    }
+
+    /// Nach einer Änderung am Plan - ohne gleich alles andere mit abzugleichen.
+    ///
+    /// Einer nach dem anderen: wer im Menü schnell drei Tage anklickt, schickt
+    /// drei Pläne los. Überholt der erste dabei den dritten, bliebe auf dem
+    /// Server ein älterer Stand stehen, während das Gerät sich für abgeglichen hält.
+    public func pushPlan() async {
+        let previous = planPush
+        let push = Task { [weak self] in
+            await previous?.value
+            await self?.performPlanPush()
+        }
+        planPush = push
+        await push.value
+    }
+
+    private func performPlanPush() async {
+        guard account.isSignedIn else { return }
+        do {
+            try await syncPlan()
         } catch APIError.unauthorized {
             account.logout()
             status = .failed("Die Anmeldung ist abgelaufen.")
@@ -136,6 +172,42 @@ public final class SyncService {
                 return workout
             }
         )
+    }
+
+    /// Der Wochenplan: wer zuletzt geändert hat, gewinnt - wie beim Profil.
+    ///
+    /// Mit einer Ausnahme beim ersten Mal: ein Plan, der ohne Konto entstanden
+    /// ist, wird mit dem des Servers zusammengeführt statt ihn zu ersetzen.
+    /// Siehe `TrainingPlanStore.needsUpload`.
+    ///
+    /// Ein Server ohne `/plan` - also einer, der noch vor 1.1 steht - antwortet
+    /// mit 404. Das ist kein Fehler des Abgleichs: der Plan bleibt dann eben
+    /// nur auf dem Gerät, und alles andere läuft weiter wie bisher.
+    private func syncPlan() async throws {
+        // Was während der Anfrage auf dem Gerät geändert wird, darf die
+        // Antwort nicht überschreiben - dann geht es beim nächsten Mal hoch.
+        let changeBeforeRequest = plan.updatedAt
+        let remote: [PlanEntryPayload]
+        do {
+            if plan.needsUpload, plan.hasNeverSynced {
+                let current = try await account.client.plan().compactMap { $0.makeEntry() }
+                remote = try await account.client.savePlan(plan.merged(with: current))
+            } else if plan.needsUpload {
+                remote = try await account.client.savePlan(plan.entries)
+            } else {
+                remote = try await account.client.plan()
+            }
+        } catch let APIError.server(code, _) where code == "NOT_FOUND" || code == "HTTP_404" {
+            return
+        }
+        guard plan.updatedAt == changeBeforeRequest else { return }
+        plan.applyRemote(remote.compactMap { payload in
+            guard var entry = payload.makeEntry() else { return nil }
+            // Eigene und mitgelieferte Programme werden über ihre Kennung
+            // aufgelöst; eine Kopie brauchen nur fremde.
+            if library.workout(id: entry.workoutID) != nil { entry.workout = nil }
+            return entry
+        })
     }
 
     private func uploadSessions() async throws {

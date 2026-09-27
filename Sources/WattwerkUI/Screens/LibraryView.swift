@@ -19,6 +19,10 @@ struct LibraryView: View {
                 VStack(alignment: .leading, spacing: 28 * Theme.scale) {
                     header
 
+                    TodayPlanCard(model: model) { workout in
+                        path.append(workout)
+                    }
+
                     ForEach(model.libraryRows) { row in
                         WorkoutRowView(row: row, ftp: ftp) { workout in
                             path.append(workout)

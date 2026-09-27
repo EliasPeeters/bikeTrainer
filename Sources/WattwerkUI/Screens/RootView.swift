@@ -61,6 +61,7 @@ public struct RootView: View {
     private func sectionView(_ section: AppModel.Section) -> some View {
         switch section {
         case .training: LibraryView(model: model)
+        case .plan: PlanView(model: model)
         case .devices: DevicesView(model: model)
         case .history: HistoryView(model: model)
         case .profile: ProfileView(model: model)

@@ -160,6 +160,28 @@ public actor APIClient {
         return list.collections
     }
 
+    // MARK: Wochenplan
+
+    public func plan() async throws -> [PlanEntryPayload] {
+        let plan: PlanPayload = try await send("/plan", method: "GET", body: Optional<Int>.none)
+        return plan.entries
+    }
+
+    /// Ersetzt den Plan auf dem Server vollständig und gibt den neuen Stand zurück.
+    public func savePlan(_ entries: [PlanEntry]) async throws -> [PlanEntryPayload] {
+        struct Body: Encodable {
+            let entries: [SavePlanEntryBody]
+        }
+        var indexByDay: [Weekday: Int] = [:]
+        let body = entries.map { entry -> SavePlanEntryBody in
+            let index = indexByDay[entry.weekday, default: 0]
+            indexByDay[entry.weekday] = index + 1
+            return SavePlanEntryBody(entry, sortIndex: index)
+        }
+        let plan: PlanPayload = try await send("/plan", method: "PUT", body: Body(entries: body))
+        return plan.entries
+    }
+
     // MARK: Einheiten
 
     /// Lädt eine Einheit hoch, mit Sekundenverlauf, falls es einen gibt.
@@ -322,5 +344,23 @@ struct SaveWorkoutBody: Encodable {
         tags = payload.tags
         visibility = payload.visibility
         segments = payload.segments
+    }
+}
+
+/// Ein Planeintrag, wie `PUT /plan` ihn erwartet: ohne das aufgelöste
+/// Programm - das sucht der Server selbst heraus.
+struct SavePlanEntryBody: Encodable {
+    let id: String
+    let weekday: Int
+    let workoutID: String
+    let workoutName: String
+    let sortIndex: Int
+
+    init(_ entry: PlanEntry, sortIndex: Int) {
+        id = entry.id.uuidString.lowercased()
+        weekday = entry.weekday.rawValue
+        workoutID = entry.workoutID.uuidString.lowercased()
+        workoutName = entry.workoutName
+        self.sortIndex = sortIndex
     }
 }

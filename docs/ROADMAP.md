@@ -43,8 +43,12 @@ ob die Werte plausibel sind. Alles Weitere hängt davon ab.
 * **Streckenmodus** statt ERG: Der Control-Point-Befehl für Simulationsparameter
   (`0x11`) ist implementiert, aber ungenutzt. Damit ließe sich eine Steigung
   fahren statt einer festen Wattzahl.
-* **Trainingsplan über Wochen** mit Belastungsverlauf – die Wochensumme an TSS
-  steht schon im Verlauf.
+* **Trainingsplan über Wochen** mit Belastungsverlauf. Die Wochenvorlage gibt
+  es seit 1.1; was fehlt, ist ein Aufbau über mehrere Wochen (Aufbau,
+  Entlastung) und einzelne Wochen, die von der Vorlage abweichen.
+* **Wochenplan im Web-Portal und als MCP-Werkzeug.** Die Route `/plan` steht,
+  Portal und MCP-Server nutzen sie noch nicht. Gerade für ein Sprachmodell wäre
+  „plan mir eine Woche“ naheliegend.
 * **iCloud-Abgleich**, damit am Mac gebaute Programme auf dem Apple TV auftauchen.
   Heute ist jedes Gerät eine Insel. `NSUbiquitousKeyValueStore` passt genau auf
   die bestehende `KeyValueStorage`-Schnittstelle.

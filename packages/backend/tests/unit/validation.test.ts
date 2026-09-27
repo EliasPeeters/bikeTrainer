@@ -1,4 +1,5 @@
 import {
+    isUUID,
     isValidEmail,
     MAX_PASSWORD_BYTES,
     optionalIntInRange,
@@ -68,5 +69,22 @@ describe("Zahlen aus dem Netz", () => {
     it("laesst Kommazahlen zu, wo sie hingehoeren", () => {
         expect(optionalNumberInRange(72.5, 30, 250)).toBe(72.5)
         expect(optionalNumberInRange(Infinity, 30, 250)).toBeNull()
+    })
+})
+
+describe("UUID-Pruefung", () => {
+    it("nimmt Kennungen aus Swift und aus dem Katalog an", () => {
+        expect(isUUID("3F2504E0-4F89-41D3-9A0C-0305E82C3301")).toBe(true)
+        expect(isUUID("a1000000-0000-4000-8000-00000000000a")).toBe(true)
+    })
+
+    it("weist ab, was keine Kennung ist", () => {
+        expect(isUUID("")).toBe(false)
+        expect(isUUID("sweet-spot")).toBe(false)
+        expect(isUUID("3f2504e0-4f89-41d3-9a0c-0305e82c330")).toBe(false)
+        expect(isUUID(" 3f2504e0-4f89-41d3-9a0c-0305e82c3301")).toBe(false)
+        expect(isUUID("3f2504e0-4f89-41d3-9a0c-0305e82c3301' OR 1=1")).toBe(false)
+        expect(isUUID(42)).toBe(false)
+        expect(isUUID(null)).toBe(false)
     })
 })

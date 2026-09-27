@@ -103,8 +103,8 @@ Wer die Spur braucht, fragt nicht die Einheit, sondern den Laden:
 `SessionStore.track(for:)` und `samples(for:)` wissen, wo sie liegt. Diagramm,
 CSV-Export und Upload sehen den Unterschied zwischen den Plattformen nicht.
 
-Die drei `@Observable`-Läden (`SettingsStore`, `WorkoutLibrary`, `SessionStore`)
-schreiben bei jeder Änderung und laden beim Start. Für die Datenmengen hier ist
+Die vier `@Observable`-Läden (`SettingsStore`, `WorkoutLibrary`, `SessionStore`,
+`TrainingPlanStore`) schreiben bei jeder Änderung und laden beim Start. Für die Datenmengen hier ist
 das völlig ausreichend; SwiftData bringt in dieser Größenordnung nur Kopplung.
 
 ## Konto und Abgleich
@@ -138,6 +138,34 @@ auch wirklich verschwindet. Ohne es würde jedes Gerät, das die Datei noch hat,
 sie beim nächsten Abgleich wieder hochladen – und das Programm wäre nicht
 totzukriegen.
 
+### Die Regel für den Wochenplan
+
+Der Plan geht immer als Ganzes über den Draht (`GET`/`PUT /plan`). Wer ihn
+zuletzt geändert hat, gewinnt – wie beim Profil, mit einem Unterschied beim
+ersten Mal:
+
+```
+hochschieben, wenn  updatedAt > syncedAt       (seither lokal geändert)
+zusammenführen,     wenn syncedAt == nil und lokal geändert
+sonst               gilt der Plan des Servers.
+```
+
+„Noch nie abgeglichen“ allein reicht hier nicht zum Hochschieben: ein frisch
+angemeldetes Apple TV hat einen leeren Plan und würde den am Mac angelegten
+überschreiben. Ein Plan, der ohne Konto entstanden ist, wird deshalb beim
+ersten Mal mit dem des Servers zusammengeführt.
+
+Ein Eintrag verweist über die Kennung auf sein Programm und wird bei jedem
+Anzeigen neu aufgelöst: eigene Bibliothek und Katalog, dann die Reihen des
+Servers, zuletzt eine Kopie im Eintrag. Die Kopie gibt es nur für fremde,
+öffentliche Programme – eigene würden sonst in einer veralteten Fassung
+gefahren, und auf dem Apple TV zählt jedes Kilobyte.
+
+Ein Server vor 1.1 kennt `/plan` nicht und antwortet mit 404. Das ist für den
+Abgleich kein Fehler: der Plan bleibt dann auf dem Gerät, alles andere läuft
+wie bisher. Umgekehrt merken Apps vor 1.1 nichts vom Plan – sie fragen die
+Route nie ab und lesen den Speicherschlüssel `plan` nie.
+
 Einheiten wandern nur hoch und tragen dafür ein `uploadedAt`. Schlägt der
 Upload fehl, bleibt die Einheit als ausstehend liegen und geht beim nächsten
 Abgleich mit; verloren geht nichts.
@@ -169,8 +197,11 @@ Ein paar SwiftUI-Bausteine gibt es auf tvOS nicht (`Stepper`, `Slider`,
 
 ## Tests
 
-82 Tests, davon 76 ohne alles in Millisekunden:
+112 Tests, davon 103 ohne alles in Millisekunden:
 
+* **Wochenplan** – Speichern, Daten aus 1.0, unlesbare Einträge, die
+  Abgleichregel (leeres Gerät überschreibt nichts, Zusammenführen beim ersten
+  Mal), Abhaken am selben Tag und verschoben in derselben Woche.
 * **Domäne** – Zeitachse an den Segmentgrenzen, Rampen, Zonen, TSS/NP/IF
   (eine Stunde an der Schwelle ergibt exakt 100 TSS), Bibliothek, Verlauf.
 * **Engine** – Segmentwechsel, Pause, Springen, Intensitätsregler, gedeckelte

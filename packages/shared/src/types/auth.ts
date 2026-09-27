@@ -84,5 +84,7 @@ export type ApiErrorCode =
     | "INVALID_TOKEN"
     | "UNAUTHORIZED"
     | "NOT_FOUND"
+    /** Die Kennung ist schon vergeben - an etwas, das jemand anderem gehoert. */
+    | "CONFLICT"
     | "TOO_MANY_REQUESTS"
     | "INTERNAL"

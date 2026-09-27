@@ -79,6 +79,8 @@ statt im Handler auf `undefined` zu prüfen.
 | DELETE | `/collections/:id` | ja | Löschen |
 | POST | `/collections/:id/items` | ja | Programm hineinlegen |
 | DELETE | `/collections/:id/items/:workoutID` | ja | Wieder herausnehmen |
+| GET | `/plan` | ja | Wochenplan samt aufgelöster Programme |
+| PUT | `/plan` | ja | Wochenplan als Ganzes ersetzen |
 
 Dieselben Routen liegen als Werkzeuge für Sprachmodelle bereit – siehe
 [MCP.md](MCP.md).
@@ -187,6 +189,41 @@ ein Wert je Sekunde.
 * **Die Route hat eine größere Körpergrenze** (`postLargeJSON`, 8 MB statt 1).
   Sie gilt nur dort; global wäre sie eine Einladung an jede ungeprüfte Route.
 
+### Wochenplan
+
+Der Wochenplan legt fest, welches Programm an welchem Wochentag dran ist
+(„Dienstag: Sweet Spot"), und wiederholt sich jede Woche. Eine Vorlage, kein
+Kalender – für „was fahre ich heute" reicht der Wochentag (ISO 8601,
+1 = Montag … 7 = Sonntag). Die App hält den Plan lokal und gleicht ihn nach der
+Anmeldung ab, damit ein auf dem Mac gebauter Plan auch auf dem Apple TV
+erscheint.
+
+```
+PUT /plan
+{"entries": [{"id": "6b0e…0001", "weekday": 2, "workoutID": "a100…0002",
+              "workoutName": "Sweet Spot 3×12", "sortIndex": 0}]}
+```
+
+* **Nur als Ganzes.** `PUT /plan` ersetzt den ganzen Plan, eine leere Liste
+  leert ihn; beide Routen antworten mit `{"entries": […]}`. Einzelne Routen je
+  Eintrag gibt es absichtlich nicht: der Plan ist eine Handvoll Zeilen, und
+  einzeln löschen hieße, Löschungen über Geräte hinweg mit Grabsteinen
+  nachzuhalten.
+* **Programme müssen beim Speichern nicht existieren.** Eingeplant werden darf
+  auch ein mitgeliefertes oder eines, das im selben Abgleich erst hochkommt.
+  Deshalb hat `planEntry.workoutID` keinen Fremdschlüssel, und jeder Eintrag
+  trägt den Namen von damals mit.
+* **Beim Lesen gilt dieselbe Sichtbarkeit wie überall.** `workout` ist gefüllt,
+  wenn das Programm eigenes, mitgeliefertes oder öffentliches ist, sonst `null`
+  – der Name bleibt. Sonst wäre der Plan ein Weg, fremde private Programme zu
+  lesen.
+* **Höchstens 50 Einträge**, Kennungen im UUID-Format (gespeichert klein),
+  keine doppelten. Ein unbrauchbarer Eintrag lehnt den ganzen Plan ab (`400
+  INVALID_BODY`), statt ihn stillschweigend auszulassen.
+* **Eine Kennung, die schon zum Plan eines anderen gehört**, gibt `409
+  CONFLICT` – der fremde Eintrag wird weder übernommen noch überschrieben.
+* Ein Zugangsschlüssel mit `read` darf lesen, aber nicht speichern.
+
 ### Die Reihen der Bibliothek
 
 `/discover` liefert fertige Reihen – der Server entscheidet, welche es gibt und
@@ -268,6 +305,9 @@ E-Mail und Passwort, mehr nicht.
   einer Übersicht, die dreißig Programme gleichzeitig zeigt.
 * **`collection`** und **`collectionItem`** – Ordner und ihr Inhalt, mit
   Reihenfolge.
+* **`planEntry`** (V6) – der Wochenplan. Ohne Fremdschlüssel auf `workout`:
+  ein eingeplantes Programm kann mitgeliefert, fremd oder gelöscht sein, und
+  der Plan soll das mit dem gespeicherten Namen überleben.
 
 Der mitgelieferte Katalog wird in V2 **aus `BuiltInWorkouts` in WattwerkCore
 erzeugt** und mit denselben Kennungen eingespielt. Lädt jemand seine Bibliothek
@@ -345,11 +385,11 @@ es fällt sonst erst auf, wenn es jemand ausnutzt.
 
 ## Tests
 
-44 Tests, `yarn backend:test`:
+155 Tests, `yarn backend:test`:
 
-* **Unit** (18) – Eingabeprüfung, Ratenbegrenzung, Tokens, Passwort-Hashing.
+* **Unit** (44) – Eingabeprüfung, Ratenbegrenzung, Tokens, Passwort-Hashing.
   Laufen ohne alles.
-* **Integration** (26) – gegen eine echte MariaDB mit dem von Flyway erzeugten
+* **Integration** (111) – gegen eine echte MariaDB mit dem von Flyway erzeugten
   Schema, über `supertest` gegen genau die Verdrahtung aus `createServer()`.
   Bewusst keine Attrappe der Datenbank: die interessanten Fehler dieser Schicht
   sind genau die, die eine Attrappe wegdefiniert – ein eindeutiger Index, ein

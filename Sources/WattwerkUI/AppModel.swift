@@ -14,6 +14,7 @@ import WattwerkCore
 public final class AppModel {
     public enum Section: String, CaseIterable, Identifiable, Hashable {
         case training
+        case plan
         case devices
         case history
         case profile
@@ -24,6 +25,7 @@ public final class AppModel {
         public var title: String {
             switch self {
             case .training: return "Training"
+            case .plan: return "Wochenplan"
             case .devices: return "Geräte"
             case .history: return "Verlauf"
             case .profile: return "Profil"
@@ -34,6 +36,7 @@ public final class AppModel {
         public var systemImage: String {
             switch self {
             case .training: return "figure.outdoor.cycle"
+            case .plan: return "calendar.day.timeline.left"
             case .devices: return "antenna.radiowaves.left.and.right"
             case .history: return "calendar"
             case .profile: return "person.crop.circle"
@@ -45,6 +48,7 @@ public final class AppModel {
     public let settings: SettingsStore
     public let library: WorkoutLibrary
     public let sessions: SessionStore
+    public let plan: TrainingPlanStore
     public let bluetooth: BluetoothManager
     public let simulator = SimulatedTrainer()
     public let engine: WorkoutEngine
@@ -79,13 +83,15 @@ public final class AppModel {
         engine = WorkoutEngine(ftp: settings.rider.ftp)
         let library = WorkoutLibrary(storage: storage)
         let sessions = SessionStore(storage: storage)
+        let plan = TrainingPlanStore(storage: storage)
         account = AccountStore(
             storage: storage,
             baseURL: APIEnvironment.url(from: settings.settings.apiBaseURL)
         )
-        sync = SyncService(account: account, library: library, sessions: sessions, settings: settings)
+        sync = SyncService(account: account, library: library, sessions: sessions, settings: settings, plan: plan)
         self.library = library
         self.sessions = sessions
+        self.plan = plan
         wire()
         // Beim Start einmal abgleichen, wenn ein Konto hinterlegt ist. Schlägt
         // es fehl, bleibt die App vollständig benutzbar - nur eben lokal.
@@ -237,6 +243,10 @@ public final class AppModel {
 
     public func delete(_ workout: Workout) {
         library.delete(id: workout.id)
+        if plan.entries.contains(where: { $0.workoutID == workout.id }) {
+            plan.removeEntries(forWorkout: workout.id)
+            schedulePlanSync()
+        }
         if account.isSignedIn, workout.ownerUserID != nil {
             Task { [weak self] in
                 try? await self?.account.client.deleteWorkout(id: workout.id.uuidString.lowercased())
@@ -248,6 +258,80 @@ public final class AppModel {
     private func scheduleSync() {
         guard account.isSignedIn else { return }
         Task { [weak self] in await self?.sync.syncAll() }
+    }
+
+    // MARK: Wochenplan
+
+    /// Die laufende Woche, Montag bis Sonntag, mit dem, was schon gefahren ist.
+    public func planWeek(now: Date = Date()) -> [PlanDay] {
+        TrainingWeek.days(around: now, entries: plan.entries, sessions: sessions.sessions)
+    }
+
+    public func planToday(now: Date = Date()) -> PlanDay? {
+        planWeek(now: now).first(where: \.isToday)
+    }
+
+    /// Das Programm hinter einem Eintrag, in seiner aktuellen Fassung.
+    ///
+    /// Zuerst die eigene Bibliothek (samt Katalog), dann was der Server gerade
+    /// in den Reihen zeigt, zuletzt die Kopie im Eintrag. `nil` heißt: das
+    /// Programm ist gelöscht und nirgends mehr zu finden.
+    public func workout(for entry: PlanEntry) -> Workout? {
+        if let workout = library.workout(id: entry.workoutID) { return workout }
+        if let workout = discoveredWorkouts.first(where: { $0.id == entry.workoutID }) { return workout }
+        return entry.workout
+    }
+
+    public func planWorkout(_ workout: Workout, on weekday: Weekday) {
+        // Eine Kopie nur für Programme, die nicht in der eigenen Bibliothek
+        // liegen - die übrigen findet der Plan über ihre Kennung.
+        plan.add(workout, on: weekday, keepsCopy: library.workout(id: workout.id) == nil)
+        schedulePlanSync()
+    }
+
+    public func removePlanEntry(_ entry: PlanEntry) {
+        plan.remove(id: entry.id)
+        schedulePlanSync()
+    }
+
+    public func movePlanEntry(_ entry: PlanEntry, to weekday: Weekday) {
+        plan.move(id: entry.id, to: weekday)
+        schedulePlanSync()
+    }
+
+    /// Wie oft `workout` im Plan steht - für den Knopf „Einplanen“.
+    public func planWeekdays(for workout: Workout) -> [Weekday] {
+        plan.entries.filter { $0.workoutID == workout.id }.map(\.weekday).sorted()
+    }
+
+    /// Was sich einplanen lässt: eigene Programme, der Katalog und, was der
+    /// Server in den Reihen zeigt und noch nicht in der Bibliothek liegt.
+    public var plannableRows: [LibraryRow] {
+        var rows: [LibraryRow] = []
+        let own = library.userWorkouts.sorted { $0.updatedAt > $1.updatedAt }
+        if !own.isEmpty {
+            rows.append(LibraryRow(id: "own", title: "Deine Programme", subtitle: nil, workouts: own))
+        }
+        rows.append(LibraryRow(id: "catalog", title: "Aus dem Katalog", subtitle: nil, workouts: library.builtInWorkouts))
+        let known = Set(library.allWorkouts.map(\.id))
+        let discovered = discoveredWorkouts.filter { !known.contains($0.id) }
+        if !discovered.isEmpty {
+            rows.append(LibraryRow(id: "discovered", title: "Entdeckt", subtitle: "Öffentliche Programme", workouts: discovered))
+        }
+        return rows
+    }
+
+    /// Alle Programme aus den Reihen und Ordnern des Servers, jedes einmal.
+    private var discoveredWorkouts: [Workout] {
+        guard let discovery = sync.discovery else { return [] }
+        var seen = Set<String>()
+        let payloads = discovery.rows.flatMap(\.workouts) + discovery.collections.flatMap(\.workouts)
+        return payloads.filter { seen.insert($0.id).inserted }.map { $0.makeWorkout() }
+    }
+
+    private func schedulePlanSync() {
+        guard account.isSignedIn else { return }
+        Task { [weak self] in await self?.sync.pushPlan() }
     }
 
     // MARK: Bibliothek

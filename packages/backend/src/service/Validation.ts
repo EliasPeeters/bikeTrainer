@@ -74,3 +74,14 @@ export function optionalNumberInRange(value: unknown, min: number, max: number):
     }
     return value
 }
+
+/**
+ * Die Form einer UUID, ohne auf die Version zu achten: der mitgelieferte
+ * Katalog hat handvergebene Kennungen wie `a1000000-0000-4000-8000-...`, und
+ * mehr als "passt in CHAR(36) und sieht aus wie eine Kennung" braucht die
+ * Datenbank nicht. Gross- und Kleinschreibung sind beide erlaubt - Swift
+ * schreibt `UUID().uuidString` gross, gespeichert wird klein.
+ */
+export function isUUID(value: unknown): value is string {
+    return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+}

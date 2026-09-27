@@ -232,7 +232,10 @@ struct WorkoutDetailView: View {
             .dimmedWhenUnavailable(!model.hasPowerSource)
             .focused($focus, equals: .start)
 
-            shareButton
+            HStack(spacing: 12) {
+                PlanMenu(model: model, workout: workout)
+                shareButton
+            }
 
             if !model.hasPowerSource {
                 Text("Kein Trainer verbunden. Unter „Geräte“ verbinden oder den Simulator einschalten.")
