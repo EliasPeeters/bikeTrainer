@@ -1,7 +1,7 @@
 {
   "name": "wattwerk",
-  "description": "Trainingsprogramme, Verlauf und Sammlungen aus Wattwerk – lesen, suchen und anlegen.",
-  "version": "0.1.0",
+  "description": "Trainingsprogramme, Wochenplan, Verlauf und Sammlungen aus Wattwerk – lesen, suchen und anlegen.",
+  "version": "0.2.0",
   "author": {
     "name": "Elias Peeters"
   },

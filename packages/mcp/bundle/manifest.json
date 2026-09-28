@@ -2,9 +2,9 @@
   "manifest_version": "0.3",
   "name": "wattwerk",
   "display_name": "Wattwerk",
-  "version": "0.1.0",
-  "description": "Trainingsprogramme, Verlauf und Sammlungen aus Wattwerk – lesen, suchen und anlegen.",
-  "long_description": "Verbindet Claude mit deinem Wattwerk-Konto: gefahrene Einheiten und Wochenbelastung lesen, die Bibliothek durchsuchen, eigene Trainingsprogramme anlegen und ändern, Sammlungen pflegen und das Fahrerprofil sehen. Zwanzig Werkzeuge, eins je Route der Wattwerk-API.\n\nZum Verbinden brauchst du einen Zugangsschlüssel: im Wattwerk-Portal unter Profil → Zugangsschlüssel anlegen und hier eintragen. Der Schlüssel lässt sich jederzeit einzeln zurücknehmen und wahlweise auf Lesen beschränken.",
+  "version": "0.2.0",
+  "description": "Trainingsprogramme, Wochenplan, Verlauf und Sammlungen aus Wattwerk – lesen, suchen und anlegen.",
+  "long_description": "Verbindet Claude mit deinem Wattwerk-Konto: gefahrene Einheiten und Wochenbelastung lesen, die Bibliothek durchsuchen, eigene Trainingsprogramme anlegen und ändern, Sammlungen pflegen, den Wochenplan lesen und füllen und das Fahrerprofil sehen. Vierundzwanzig Werkzeuge.\n\nZum Verbinden brauchst du einen Zugangsschlüssel: im Wattwerk-Portal unter Profil → Zugangsschlüssel anlegen und hier eintragen. Der Schlüssel lässt sich jederzeit einzeln zurücknehmen und wahlweise auf Lesen beschränken.",
   "author": {
     "name": "Elias Peeters"
   },
@@ -55,6 +55,10 @@
     {"name": "delete_collection", "description": "Sammlung löschen"},
     {"name": "add_workout_to_collection", "description": "Programm in eine Sammlung legen"},
     {"name": "remove_workout_from_collection", "description": "Programm aus einer Sammlung nehmen"},
+    {"name": "get_plan", "description": "Der Wochenplan"},
+    {"name": "add_workout_to_plan", "description": "Programm an einem Wochentag einplanen"},
+    {"name": "remove_from_plan", "description": "Eintrag aus dem Wochenplan nehmen"},
+    {"name": "set_plan", "description": "Ganzen Wochenplan ersetzen"},
     {"name": "list_sessions", "description": "Gefahrene Einheiten und Wochenbelastung"},
     {"name": "log_session", "description": "Einheit nachtragen"},
     {"name": "delete_session", "description": "Einheit löschen"},

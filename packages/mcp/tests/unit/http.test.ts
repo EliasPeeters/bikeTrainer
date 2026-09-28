@@ -175,7 +175,7 @@ describe("Werkzeuge über HTTP", () => {
             body: {jsonrpc: "2.0", id: 1, method: "tools/list"},
         })
         expect(response.status).toBe(200)
-        expect(response.body.result.tools).toHaveLength(20)
+        expect(response.body.result.tools).toHaveLength(24)
     })
 
     it("reicht das Token des Aufrufs an die API weiter, statt eines zu speichern", async () => {
@@ -284,6 +284,6 @@ describe("OAuth", () => {
         const response = await call("/mcp", {token: refresh, body: {jsonrpc: "2.0", id: 1, method: "tools/list"}})
 
         expect(response.status).toBe(200)
-        expect(response.body.result.tools).toHaveLength(20)
+        expect(response.body.result.tools).toHaveLength(24)
     })
 })

@@ -76,8 +76,8 @@ zurücknehmen.
 
 Ohne `WATTWERK_API_URL` zeigt er auf die **Live-API**; für den lokalen Stack
 `export WATTWERK_API_URL=http://localhost:8088`. Danach kann ein Assistent den
-Verlauf lesen, die Bibliothek durchsuchen und Programme anlegen – zwanzig
-Werkzeuge, eins je API-Route.
+Verlauf lesen, die Bibliothek durchsuchen, Programme anlegen und in den
+Wochenplan legen – vierundzwanzig Werkzeuge.
 
 Denselben Server gibt es auch über HTTP, als Container im Produktionsstack
 unter `https://mcp.wattwerk.eliaspeeters.de/mcp`. Dort bringt jeder Aufruf sein
@@ -243,7 +243,7 @@ HTTP-Routen – keine zweite Geschäftslogik, die auseinanderlaufen könnte.
 
 **Geprüft.** Beide App-Targets bauen (Xcode 27, Swift 6), 112 Swift-Tests grün.
 155 Backend-Tests grün, davon 111 gegen eine echte MariaDB. 49 MCP-Tests grün,
-dazu alle zwanzig Werkzeuge einmal von Hand gegen den laufenden Stack — über
+dazu alle Werkzeuge einmal von Hand gegen den laufenden Stack — über
 stdio, über HTTP und aus dem fertigen Container heraus. Der OAuth-Ablauf ist
 einmal vollständig von Hand durchgespielt: registrieren, zustimmen, Code
 tauschen, Token benutzen, auffrischen, trennen. Der API-Stack fährt

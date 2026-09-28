@@ -130,6 +130,25 @@ eine Schleife gegen die Ratenbegrenzung.
 | `add_workout_to_collection` | `POST /collections/:id/items` |
 | `remove_workout_from_collection` | `DELETE /collections/:id/items/:workoutID` |
 
+**Wochenplan**
+
+Welches Programm an welchem Wochentag dran ist, jede Woche gleich – derselbe
+Plan wie in App und Portal. Die API nimmt ihn nur als Ganzes (`PUT /plan`);
+`add_workout_to_plan` und `remove_from_plan` lesen ihn deshalb, ändern einen
+Eintrag und schreiben ihn zurück, damit ein Modell für einen einzelnen Tag nicht
+den ganzen Plan neu aufsagen muss und dabei etwas vergisst.
+
+| Werkzeug | Route | Zweck |
+|---|---|---|
+| `get_plan` | `GET /plan` | Der Plan, ein Tag je Absatz, freie Tage inklusive |
+| `add_workout_to_plan` | `GET` + `PUT /plan` | Ein Programm an einem Tag einplanen |
+| `remove_from_plan` | `GET` + `PUT /plan` | Einen Eintrag herausnehmen |
+| `set_plan` | `PUT /plan` | Den ganzen Plan ersetzen – „plan mir eine Woche“ |
+
+Programme werden vor dem Speichern nachgeschlagen. Die API nähme auch eine
+Kennung, die es nicht gibt; ein vertipptes Modell hinterließe dann einen
+Eintrag, der in der App als „nicht mehr verfügbar“ auftaucht.
+
 **Verlauf und Profil**
 
 | Werkzeug | Route | Zweck |
@@ -332,7 +351,7 @@ Zugangsschlüssel funktionieren weiter.
 die der Apps. Für einen einzelnen Nutzer ist das Trennen im Portal der Weg;
 einen Notausschalter für alle gibt es nicht.
 
-Ob ChatGPT die zwanzig Werkzeuge so anzeigt, wie Claude es tut, ist ungeprüft:
+Ob ChatGPT die vierundzwanzig Werkzeuge so anzeigt, wie Claude es tut, ist ungeprüft:
 dessen Connector-Oberfläche erwartet für die Suche eigene `search`- und
 `fetch`-Werkzeuge. Der Anmeldeweg steht, die Darstellung dort nicht.
 
@@ -431,6 +450,6 @@ Token, kaputter Header, falsche Methode, falscher Pfad, keine CORS-Freigabe für
 fremde Herkünfte, und dass das Token des Aufrufs durchgereicht statt
 gespeichert wird. Eine Datenbank brauchen sie nicht.
 
-Der Weg gegen eine echte API ist von Hand geprüft: alle zwanzig Werkzeuge
+Der Weg gegen eine echte API ist von Hand geprüft: alle Werkzeuge
 einmal gegen den laufenden lokalen Stack, einschließlich der Fehlerwege – über
 stdio, über HTTP und aus dem fertigen Container heraus.

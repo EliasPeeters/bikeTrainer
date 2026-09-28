@@ -1,11 +1,12 @@
 import {McpServer} from "@modelcontextprotocol/sdk/server/mcp.js"
 import {WattwerkClient} from "./api"
 import {registerCollectionTools} from "./tools/collections"
+import {registerPlanTools} from "./tools/plan"
 import {registerProfileTools} from "./tools/profile"
 import {registerSessionTools} from "./tools/sessions"
 import {registerWorkoutTools} from "./tools/workouts"
 
-const VERSION = "0.1.0"
+const VERSION = "0.2.0"
 
 /**
  * Die Wattwerk-API als MCP-Server.
@@ -23,14 +24,17 @@ export function createMcpServer(client: WattwerkClient = new WattwerkClient()): 
                 "Wattwerk ist strukturiertes Indoor-Radtraining. Ein Programm besteht aus Blöcken " +
                 "mit Dauer und Leistungsvorgabe; Vorgaben in Prozent der FTP passen sich jedem Fahrer " +
                 "an, absolute Watt nicht. Eine Sammlung ist Ordner und Playlist zugleich, etwa ein " +
-                "Trainingsplan. TSS ist die Belastung einer Einheit - eine harte Stunde liegt bei 100. " +
-                "Beim Planen lohnt sich zuerst get_profile (FTP) und list_sessions (was zuletzt " +
-                "gefahren wurde); Vorlagen findet browse_library oder search_workouts.",
+                "Trainingsplan. Der Wochenplan legt fest, welches Programm an welchem Wochentag dran " +
+                "ist, und gilt jede Woche - App und Web-Portal zeigen ihn. TSS ist die Belastung einer " +
+                "Einheit - eine harte Stunde liegt bei 100. Beim Planen lohnt sich zuerst get_profile " +
+                "(FTP), list_sessions (was zuletzt gefahren wurde) und get_plan (was schon eingeplant " +
+                "ist); Vorlagen findet browse_library oder search_workouts.",
         }
     )
 
     registerWorkoutTools(server, client)
     registerCollectionTools(server, client)
+    registerPlanTools(server, client)
     registerSessionTools(server, client)
     registerProfileTools(server, client)
 

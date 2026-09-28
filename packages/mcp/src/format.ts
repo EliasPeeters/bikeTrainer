@@ -1,5 +1,6 @@
 import type {
     CollectionDTO,
+    PlanEntryDTO,
     PowerTargetDTO,
     TrainingSessionResponse,
     UserResponse,
@@ -181,4 +182,45 @@ export function profileText(user: UserResponse): string {
         `Produktmails: ${user.mailContactAllowed ? "ja" : "nein"}`,
         `Konto seit ${user.createdAt.slice(0, 10)}`,
     ].join("\n")
+}
+
+export const WEEKDAY_NAMES = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
+
+/**
+ * Der Wochenplan, ein Tag je Absatz.
+ *
+ * Freie Tage stehen mit da: "Mittwoch: frei" ist eine Aussage, auf die ein
+ * Modell beim Planen einer Ruhepause bauen kann - ein fehlender Mittwoch
+ * waere nur eine Luecke. Beide Kennungen stehen je Eintrag dabei, weil
+ * remove_from_plan die eine und alles andere die andere braucht.
+ */
+export function planText(entries: PlanEntryDTO[]): string {
+    if (entries.length === 0) {
+        return "Der Wochenplan ist leer. add_workout_to_plan oder set_plan legt Einträge an."
+    }
+    const duration = entries.reduce((sum, entry) => sum + (entry.workout?.durationSeconds ?? 0), 0)
+    const stress = entries.reduce((sum, entry) => sum + Math.round(entry.workout?.plannedTSS ?? 0), 0)
+    const head =
+        `Wochenplan (gilt jede Woche): ${count(entries.length, "Einheit", "Einheiten")} · ` +
+        `${clock(duration)} · ${stress} TSS geplant`
+
+    const days = WEEKDAY_NAMES.map((name, index) => {
+        const day = entries
+            .filter((entry) => entry.weekday === index + 1)
+            .sort((a, b) => a.sortIndex - b.sortIndex)
+        if (day.length === 0) {
+            return `${name}: frei`
+        }
+        const lines = day.map((entry) => {
+            const workout = entry.workout
+            const detail =
+                workout === null
+                    ? `${entry.workoutName} — nicht mehr verfügbar (gelöscht oder nicht sichtbar)`
+                    : `${workout.name} — ${clock(workout.durationSeconds)} · ${Math.round(workout.plannedTSS)} TSS`
+            return `- ${detail}\n  Programm: ${entry.workoutID} · Eintrag: ${entry.id}`
+        })
+        return `${name}:\n${lines.join("\n")}`
+    })
+
+    return `${head}\n\n${days.join("\n")}`
 }

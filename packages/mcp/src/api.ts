@@ -6,8 +6,10 @@ import type {
     CollectionDTO,
     CollectionListResponse,
     DiscoveryResponse,
+    PlanResponse,
     RefreshTokenResponse,
     SaveCollectionRequest,
+    SavePlanRequest,
     SaveWorkoutRequest,
     TrainingSessionListResponse,
     TrainingSessionPayload,
@@ -199,6 +201,17 @@ export class WattwerkClient {
             `/collections/${encodeURIComponent(id)}/items/${encodeURIComponent(workoutID)}`,
             {method: "DELETE"}
         )
+    }
+
+    // MARK: - Wochenplan
+
+    public async plan(): Promise<PlanResponse> {
+        return await this.call<PlanResponse>("/plan")
+    }
+
+    /** Ersetzt den ganzen Plan - einzelne Eintraege gibt es auf dem Draht nicht. */
+    public async savePlan(body: SavePlanRequest): Promise<PlanResponse> {
+        return await this.call<PlanResponse>("/plan", {method: "PUT", body})
     }
 
     // MARK: - Gefahrene Einheiten
