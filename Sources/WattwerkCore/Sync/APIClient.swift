@@ -184,6 +184,25 @@ public actor APIClient {
 
     // MARK: Einheiten
 
+    /// Die gefahrenen Einheiten eines Zeitraums, von allen Geräten.
+    ///
+    /// Ein Server vor 1.1 kennt `from`/`to` nicht und liefert einfach die
+    /// letzten - wer das hier ruft, grenzt deshalb selbst noch einmal ein.
+    public func sessions(from: Date, to: Date) async throws -> [SessionSummaryPayload] {
+        let formatter = ISO8601DateFormatter()
+        let list: SessionSummaryListPayload = try await send(
+            "/sessions",
+            method: "GET",
+            body: Optional<Int>.none,
+            query: [
+                URLQueryItem(name: "from", value: formatter.string(from: from)),
+                URLQueryItem(name: "to", value: formatter.string(from: to)),
+                URLQueryItem(name: "limit", value: "200"),
+            ]
+        )
+        return list.sessions
+    }
+
     /// Lädt eine Einheit hoch, mit Sekundenverlauf, falls es einen gibt.
     ///
     /// Ohne `track` bleibt eine bereits gespeicherte Kurve auf dem Server
@@ -210,10 +229,11 @@ public actor APIClient {
         _ path: String,
         method: String,
         body: Body?,
+        query: [URLQueryItem] = [],
         authenticated: Bool = true,
         allowRefresh: Bool = true
     ) async throws -> Result {
-        let (data, response) = try await perform(path, method: method, body: body, authenticated: authenticated)
+        let (data, response) = try await perform(path, method: method, body: body, query: query, authenticated: authenticated)
 
         // Eine 401 ohne Token heißt: es fehlt die Sitzung, nicht etwas an der
         // Anfrage. Vorher fiel dieser Fall bis zur allgemeinen
@@ -239,6 +259,7 @@ public actor APIClient {
                     path,
                     method: method,
                     body: body,
+                    query: query,
                     authenticated: authenticated,
                     allowRefresh: false
                 )
@@ -273,9 +294,19 @@ public actor APIClient {
         _ path: String,
         method: String,
         body: Body?,
+        query: [URLQueryItem] = [],
         authenticated: Bool
     ) async throws -> (Data, HTTPURLResponse) {
-        var request = URLRequest(url: baseURL.appendingPathComponent(path))
+        var url = baseURL.appendingPathComponent(path)
+        if !query.isEmpty, var components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            components.queryItems = query
+            // `+` bleibt in einer Abfrage stehen und heißt dort Leerzeichen -
+            // in einem Zeitpunkt wie `…+02:00` also genau das Falsche.
+            components.percentEncodedQuery = components.percentEncodedQuery?
+                .replacingOccurrences(of: "+", with: "%2B")
+            url = components.url ?? url
+        }
+        var request = URLRequest(url: url)
         request.httpMethod = method
         request.timeoutInterval = 20
 

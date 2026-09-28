@@ -56,6 +56,9 @@ public final class AppModel {
     public let sync: SyncService
 
     public var section: Section = .training
+    /// Einheiten anderer Geräte je Woche (Schlüssel: Montag 0 Uhr), wie der
+    /// Server sie geliefert hat. Nur für den Wochenplan.
+    public private(set) var remoteRides: [Date: [TrainingWeek.Ride]] = [:]
     /// Set while the ride screen is up (full screen on both platforms).
     public var isRiding = false
     /// Counts down before the first interval so you can clip in.
@@ -262,9 +265,33 @@ public final class AppModel {
 
     // MARK: Wochenplan
 
-    /// Die laufende Woche, Montag bis Sonntag, mit dem, was schon gefahren ist.
-    public func planWeek(now: Date = Date()) -> [PlanDay] {
-        TrainingWeek.days(around: now, entries: plan.entries, sessions: sessions.sessions)
+    /// Die Woche um `date`, Montag bis Sonntag, mit dem, was gefahren wurde.
+    ///
+    /// Gefahren heißt: auf diesem Gerät, und - sobald `refreshRides` sie
+    /// geholt hat - auch auf allen anderen. Sonst bliebe auf dem Apple TV ein
+    /// Dienstag offen, den man am Mac gefahren hat.
+    public func planWeek(containing date: Date = Date(), now: Date = Date()) -> [PlanDay] {
+        TrainingWeek.days(around: date, today: now, entries: plan.entries, rides: rides(inWeekOf: date))
+    }
+
+    public func planWeek(now: Date) -> [PlanDay] {
+        planWeek(containing: now, now: now)
+    }
+
+    /// Die Einheiten der Woche um `date`, von diesem Gerät und vom Server.
+    public func rides(inWeekOf date: Date) -> [TrainingWeek.Ride] {
+        let remote = remoteRides[TrainingWeek.start(of: date)] ?? []
+        return TrainingWeek.rides(TrainingWeek.merge(local: sessions.sessions, remote: remote), inWeekOf: date)
+    }
+
+    /// Holt die gefahrenen Einheiten einer Woche vom Server. Ohne Konto oder
+    /// ohne Netz bleibt es bei denen dieses Geräts.
+    public func refreshRides(forWeekOf date: Date) async {
+        let start = TrainingWeek.start(of: date)
+        guard start <= Date(), let end = Calendar.current.date(byAdding: .day, value: 7, to: start),
+              let rides = await sync.rides(from: start, to: end)
+        else { return }
+        remoteRides[start] = rides
     }
 
     public func planToday(now: Date = Date()) -> PlanDay? {

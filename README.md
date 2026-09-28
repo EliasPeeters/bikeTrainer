@@ -179,8 +179,8 @@ auf der Seite eines Programms über *Einplanen*; ein Programm lässt sich so mit
 ein paar Klicks auf mehrere Tage legen. Gefahrene Einheiten haken den Eintrag
 ab, auch wenn der Dienstag ein Mittwoch wurde. Oben in *Training* steht, was
 heute dran ist. Auf Mac, Apple TV und im Web-Portal, mit Konto überall gleich.
-Im Portal lässt sich außerdem Woche für Woche zurückblättern: was geplant war,
-was davon gefahren wurde und was sonst noch dazukam.
+In App und Portal lässt sich Woche für Woche blättern: was geplant war und was
+davon gefahren wurde – auf jedem Gerät, nicht nur auf dem, das man gerade hält.
 
 **Trainer.** FTMS (0x1826): Indoor Bike Data lesen, Control Point schreiben,
 also echte ERG-Steuerung. Fällt auf Cycling Power (0x1818) zurück, wenn der
@@ -241,7 +241,7 @@ HTTP-Routen – keine zweite Geschäftslogik, die auseinanderlaufen könnte.
 
 ## Geprüft und nicht geprüft
 
-**Geprüft.** Beide App-Targets bauen (Xcode 27, Swift 6), 112 Swift-Tests grün.
+**Geprüft.** Beide App-Targets bauen (Xcode 27, Swift 6), 116 Swift-Tests grün.
 155 Backend-Tests grün, davon 111 gegen eine echte MariaDB. 49 MCP-Tests grün,
 dazu alle Werkzeuge einmal von Hand gegen den laufenden Stack — über
 stdio, über HTTP und aus dem fertigen Container heraus. Der OAuth-Ablauf ist
@@ -249,7 +249,7 @@ einmal vollständig von Hand durchgespielt: registrieren, zustimmen, Code
 tauschen, Token benutzen, auffrischen, trennen. Der API-Stack fährt
 mit `docker compose up` hoch, Flyway spielt beide Migrationen ein. Im Browser
 durchgespielt: registrieren, Programm mit Intervallserie bauen, speichern,
-veröffentlichen. Und neun Swift-Tests fahren den echten `APIClient` gegen den
+veröffentlichen. Und zehn Swift-Tests fahren den echten `APIClient` gegen den
 laufenden Server – inklusive der Prüfung, dass der Katalog in App und Datenbank
 Feld für Feld derselbe ist.
 

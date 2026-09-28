@@ -44,6 +44,8 @@ struct LibraryView: View {
                 // Beim Öffnen die Reihen auffrischen - eine Einheit auf einem
                 // anderen Gerät soll hier ankommen, ohne die App neu zu starten.
                 await model.sync.refreshDiscovery()
+                // Für „Heute im Plan“: auch was auf einem anderen Gerät gefahren wurde.
+                await model.refreshRides(forWeekOf: Date())
             }
             #if !os(tvOS)
             .toolbar {

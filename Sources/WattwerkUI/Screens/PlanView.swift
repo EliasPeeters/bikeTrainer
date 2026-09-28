@@ -7,6 +7,11 @@ import WattwerkCore
 /// eine Gewohnheit („dienstags Sweet Spot“). Was in dieser Woche schon gefahren
 /// wurde, ist abgehakt.
 ///
+/// Geblättert wird wie im Web-Portal durch das, was gefahren wurde: dieselbe
+/// Vorlage, gelegt gegen eine vergangene oder kommende Woche. Abgehakt zählt
+/// dabei jedes Gerät, nicht nur dieses - die Einheiten der gezeigten Woche
+/// kommen dafür vom Server.
+///
 /// Auf dem Mac öffnet ein Klick auf einen Eintrag das Programm, alles andere
 /// steht im Menü daneben. Auf dem Apple TV gibt es kein Kontextmenü, das man
 /// sieht - dort fragt ein Druck auf den Eintrag, was passieren soll.
@@ -16,15 +21,23 @@ struct PlanView: View {
     @State private var pickerDay: Weekday?
     @State private var actionEntry: PlanEntry?
     @State private var movingEntry: PlanEntry?
+    /// 0 ist diese Woche, -1 die letzte, 1 die nächste.
+    @State private var weekOffset = 0
 
     private var ftp: Int { model.settings.rider.ftp }
 
+    /// Irgendein Tag der gezeigten Woche - heute, um `weekOffset` Wochen verschoben.
+    private var shownDate: Date {
+        Calendar.current.date(byAdding: .day, value: 7 * weekOffset, to: Date()) ?? Date()
+    }
+
     var body: some View {
-        let days = model.planWeek()
+        let days = model.planWeek(containing: shownDate)
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22 * Theme.scale) {
                     header
+                    weekNavigation
                     summary(days)
                         .padding(.horizontal, Theme.pageInset)
 
@@ -41,6 +54,14 @@ struct PlanView: View {
             .navigationDestination(for: Workout.self) { workout in
                 WorkoutDetailView(model: model, workout: workout)
             }
+        }
+        .task {
+            // Was im Web, am Mac oder über den MCP-Server umgeplant wurde, soll
+            // beim Öffnen hier stehen - nicht erst nach einem Neustart der App.
+            await model.sync.refreshPlan()
+        }
+        .task(id: weekOffset) {
+            await model.refreshRides(forWeekOf: shownDate)
         }
         .sheet(item: $pickerDay) { weekday in
             PlanWorkoutPicker(model: model, weekday: weekday)
@@ -100,24 +121,91 @@ struct PlanView: View {
         .padding(.horizontal, Theme.pageInset)
     }
 
+    // MARK: Wochen
+
+    /// ‹ Diese Woche › - und ein Weg zurück, sobald man woanders ist.
+    private var weekNavigation: some View {
+        let start = TrainingWeek.start(of: shownDate)
+        let end = Calendar.current.date(byAdding: .day, value: 6, to: start) ?? start
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 16 * Theme.scale) {
+                Button {
+                    weekOffset -= 1
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 16 * Theme.scale, weight: .semibold))
+                        .frame(minWidth: 24 * Theme.scale)
+                }
+                .accessibilityLabel("Vorherige Woche")
+
+                VStack(spacing: 2) {
+                    Text(Self.relativeWeek(weekOffset))
+                        .font(.system(size: 17 * Theme.scale, weight: .semibold))
+                    Text("KW \(TrainingWeek.weekNumber(of: start)) · \(Self.dateFormatter.string(from: start)) – \(Self.dateFormatter.string(from: end))")
+                        .font(.system(size: 12 * Theme.scale))
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+
+                Button {
+                    weekOffset += 1
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 16 * Theme.scale, weight: .semibold))
+                        .frame(minWidth: 24 * Theme.scale)
+                }
+                .accessibilityLabel("Nächste Woche")
+
+                if weekOffset != 0 {
+                    Button("Diese Woche") { weekOffset = 0 }
+                }
+            }
+            .buttonStyle(.bordered)
+            .padding(12 * Theme.scale)
+            .cardBackground()
+            .focusGroup()
+
+            if weekOffset != 0, !model.plan.isEmpty {
+                Text("Der Plan ist für jede Woche derselbe. Was du hier änderst, gilt auch für alle anderen Wochen.")
+                    .font(.system(size: 12 * Theme.scale))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, Theme.pageInset)
+    }
+
+    static func relativeWeek(_ offset: Int) -> String {
+        switch offset {
+        case 0: return "Diese Woche"
+        case 1: return "Nächste Woche"
+        case -1: return "Letzte Woche"
+        case let n where n > 1: return "In \(n) Wochen"
+        default: return "Vor \(-offset) Wochen"
+        }
+    }
+
     private func summary(_ days: [PlanDay]) -> some View {
         let entries = days.flatMap(\.entries)
         let done = days.reduce(0) { $0 + $1.entries.filter($1.isCompleted).count }
         let plannedTSS = entries.reduce(0) { $0 + (model.workout(for: $1)?.plannedTSS(ftp: ftp) ?? 0) }
-        let weekStart = days.first?.date ?? Date()
-        let riddenTSS = model.sessions.sessions
-            .filter { $0.startedAt >= weekStart }
-            .reduce(0) { $0 + $1.trainingStressScore }
+        let riddenTSS = model.rides(inWeekOf: shownDate).reduce(0) { $0 + $1.trainingStressScore }
+        // Eine Woche, die noch nicht begonnen hat, hat nichts Erledigtes -
+        // „0 von 5“ klänge dort nach einem Rückstand.
+        let isFuture = weekOffset > 0
 
         return HStack(spacing: 16) {
             MetricTile(label: "Geplant", value: "\(entries.count)", unit: entries.count == 1 ? "Einheit" : "Einheiten")
             MetricTile(
                 label: "Erledigt",
-                value: "\(done)",
-                unit: "von \(entries.count)",
-                tint: done > 0 && done == entries.count ? Theme.positive : .white
+                value: isFuture ? "–" : "\(done)",
+                unit: isFuture ? nil : "von \(entries.count)",
+                tint: !isFuture && done > 0 && done == entries.count ? Theme.positive : .white
             )
-            MetricTile(label: "Belastung", value: "\(riddenTSS)", unit: "von \(plannedTSS) TSS")
+            MetricTile(
+                label: "Belastung",
+                value: isFuture ? "\(plannedTSS)" : "\(riddenTSS)",
+                unit: isFuture ? "TSS geplant" : "von \(plannedTSS) TSS"
+            )
         }
         .padding(16)
         .cardBackground()

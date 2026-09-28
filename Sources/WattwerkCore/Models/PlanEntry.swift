@@ -127,7 +127,71 @@ public enum TrainingWeek {
         return calendar.date(byAdding: .day, value: -offset, to: day) ?? day
     }
 
-    /// Die sieben Tage der Woche um `now`, mit dem, was schon gefahren wurde.
+    /// Eine gefahrene Einheit, so weit der Wochenplan sie braucht.
+    ///
+    /// Eigener kleiner Typ statt `SessionRecord`: im Plan zählen auch Einheiten,
+    /// die auf einem anderen Gerät gefahren wurden und hier nur als Zeile aus
+    /// `GET /sessions` bekannt sind - ohne Sekundenspur, ohne Zonen.
+    public struct Ride: Hashable, Sendable {
+        /// Die Kennung vom Gerät, das die Einheit aufgezeichnet hat. Daran
+        /// erkennt man dieselbe Einheit lokal und vom Server wieder.
+        public var id: String
+        public var workoutID: UUID?
+        public var startedAt: Date
+        public var trainingStressScore: Int
+
+        public init(id: String, workoutID: UUID?, startedAt: Date, trainingStressScore: Int) {
+            self.id = id.lowercased()
+            self.workoutID = workoutID
+            self.startedAt = startedAt
+            self.trainingStressScore = trainingStressScore
+        }
+
+        public init(_ record: SessionRecord) {
+            self.init(
+                id: record.id.uuidString,
+                workoutID: record.workoutID,
+                startedAt: record.startedAt,
+                trainingStressScore: record.trainingStressScore
+            )
+        }
+    }
+
+    /// Die Einheiten dieses Geräts plus die vom Server, jede einmal.
+    public static func merge(local: [SessionRecord], remote: [Ride]) -> [Ride] {
+        var seen = Set<String>()
+        return (local.map(Ride.init) + remote).filter { seen.insert($0.id).inserted }
+    }
+
+    /// Die Einheiten, die in die Woche um `date` fallen.
+    public static func rides(_ rides: [Ride], inWeekOf date: Date, calendar: Calendar = .current) -> [Ride] {
+        let weekStart = start(of: date, calendar: calendar)
+        let weekEnd = calendar.date(byAdding: .day, value: 7, to: weekStart) ?? weekStart
+        return rides.filter { $0.startedAt >= weekStart && $0.startedAt < weekEnd }
+    }
+
+    /// Kalenderwoche nach ISO 8601 - die, die in deutschen Kalendern steht.
+    public static func weekNumber(of date: Date, calendar: Calendar = .current) -> Int {
+        var iso = Calendar(identifier: .iso8601)
+        iso.timeZone = calendar.timeZone
+        return iso.component(.weekOfYear, from: date)
+    }
+
+    public static func days(
+        around date: Date = Date(),
+        today: Date? = nil,
+        entries: [PlanEntry],
+        sessions: [SessionRecord],
+        calendar: Calendar = .current
+    ) -> [PlanDay] {
+        days(around: date, today: today, entries: entries, rides: sessions.map(Ride.init), calendar: calendar)
+    }
+
+    /// Die sieben Tage der Woche um `date`, mit dem, was gefahren wurde.
+    ///
+    /// `today` ist der echte heutige Tag und entscheidet, was vorbei ist und
+    /// was noch kommt - beim Blättern in eine andere Woche ist das nicht
+    /// dasselbe wie `date`. Ohne Angabe gilt `date` als heute.
     ///
     /// Eine Einheit hakt einen Eintrag ab, wenn sie dasselbe Programm war. Zuerst
     /// am selben Tag - danach irgendwo in derselben Woche, weil der Dienstag im
@@ -135,24 +199,24 @@ public enum TrainingWeek {
     /// sie trotzdem gefahren. Jede Einheit hakt höchstens einen Eintrag ab: wer
     /// zweimal dasselbe geplant hat, muss es auch zweimal fahren.
     public static func days(
-        around now: Date = Date(),
+        around date: Date = Date(),
+        today: Date? = nil,
         entries: [PlanEntry],
-        sessions: [SessionRecord],
+        rides: [Ride],
         calendar: Calendar = .current
     ) -> [PlanDay] {
-        let weekStart = start(of: now, calendar: calendar)
-        let today = calendar.startOfDay(for: now)
+        let weekStart = start(of: date, calendar: calendar)
+        let today = calendar.startOfDay(for: today ?? date)
         let dates: [Weekday: Date] = Dictionary(uniqueKeysWithValues: Weekday.allCases.map { weekday in
             (weekday, calendar.date(byAdding: .day, value: weekday.rawValue - 1, to: weekStart) ?? weekStart)
         })
-        let weekEnd = calendar.date(byAdding: .day, value: 7, to: weekStart) ?? weekStart
 
-        var unused = sessions
-            .filter { $0.startedAt >= weekStart && $0.startedAt < weekEnd && $0.workoutID != nil }
+        var unused = Self.rides(rides, inWeekOf: weekStart, calendar: calendar)
+            .filter { $0.workoutID != nil }
             .sorted { $0.startedAt < $1.startedAt }
         var completed = Set<UUID>()
 
-        func consume(_ entry: PlanEntry, where matches: (SessionRecord) -> Bool) {
+        func consume(_ entry: PlanEntry, where matches: (Ride) -> Bool) {
             guard !completed.contains(entry.id),
                   let index = unused.firstIndex(where: { $0.workoutID == entry.workoutID && matches($0) })
             else { return }

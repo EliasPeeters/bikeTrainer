@@ -197,7 +197,7 @@ Ein paar SwiftUI-Bausteine gibt es auf tvOS nicht (`Stepper`, `Slider`,
 
 ## Tests
 
-112 Tests, davon 103 ohne alles in Millisekunden:
+116 Tests, davon 106 ohne alles in Millisekunden:
 
 * **Wochenplan** – Speichern, Daten aus 1.0, unlesbare Einträge, die
   Abgleichregel (leeres Gerät überschreibt nichts, Zusammenführen beim ersten

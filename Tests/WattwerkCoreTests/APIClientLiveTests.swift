@@ -274,4 +274,38 @@ struct APIClientLiveTests {
         // Ein leerer Plan leert ihn auch auf dem Server.
         #expect(try await client.savePlan([]).isEmpty)
     }
+
+    @Test("Die Einheiten einer Woche kommen vom Server, auch die anderer Geräte")
+    func sessionsOfAWeek() async throws {
+        let client = self.client
+        _ = try await client.register(email: freshEmail(), password: "geheim12", name: "Swift")
+
+        func record(_ start: Date, tss: Int) -> SessionRecord {
+            SessionRecord(
+                workoutID: BuiltInWorkouts.tabata.id,
+                workoutName: "Tabata",
+                startedAt: start,
+                duration: 1680,
+                completed: true,
+                ftp: 250,
+                averagePower: 200,
+                maxPower: 400,
+                normalizedPower: 220,
+                intensityFactor: 0.88,
+                trainingStressScore: tss,
+                kilojoules: 330
+            )
+        }
+        let monday = TrainingWeek.start(of: Date())
+        let inWeek = record(monday.addingTimeInterval(3600 * 18), tss: 61)
+        let before = record(monday.addingTimeInterval(-3600), tss: 99)
+        try await client.upload(session: inWeek)
+        try await client.upload(session: before)
+
+        let week = try await client.sessions(from: monday, to: monday.addingTimeInterval(7 * 86400))
+        let rides = week.compactMap { $0.makeRide() }
+        #expect(rides.map(\.id) == [inWeek.id.uuidString.lowercased()])
+        #expect(rides.first?.workoutID == BuiltInWorkouts.tabata.id)
+        #expect(rides.first?.trainingStressScore == 61)
+    }
 }

@@ -120,6 +120,23 @@ public final class SyncService {
         await push.value
     }
 
+    /// Beim Öffnen des Wochenplans: was auf einem anderen Gerät, im Web oder
+    /// über den MCP-Server geändert wurde, soll hier ankommen, ohne die App
+    /// neu zu starten. Dieselbe Regel wie immer - steht hier eine lokale
+    /// Änderung aus, geht die zuerst hoch.
+    public func refreshPlan() async {
+        await pushPlan()
+    }
+
+    /// Die gefahrenen Einheiten eines Zeitraums vom Server - auch die der
+    /// anderen Geräte. `nil` ohne Konto oder ohne Netz; dann zählt nur, was
+    /// hier liegt.
+    public func rides(from: Date, to: Date) async -> [TrainingWeek.Ride]? {
+        guard account.isSignedIn else { return nil }
+        guard let sessions = try? await account.client.sessions(from: from, to: to) else { return nil }
+        return sessions.compactMap { $0.makeRide() }
+    }
+
     private func performPlanPush() async {
         guard account.isSignedIn else { return }
         do {

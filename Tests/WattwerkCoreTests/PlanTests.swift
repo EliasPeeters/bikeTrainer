@@ -241,4 +241,56 @@ struct PlanTests {
         )
         #expect(days[1].completedEntryIDs.isEmpty)
     }
+
+    // MARK: Andere Wochen und andere Geräte
+
+    @Test("In einer vergangenen Woche ist alles vorbei und nichts heute")
+    func pastWeek() {
+        let tabata = BuiltInWorkouts.tabata
+        let entry = PlanEntry(weekday: .friday, workoutID: tabata.id, workoutName: tabata.name)
+        let days = TrainingWeek.days(
+            around: Self.day(-7),
+            today: Self.tuesday,
+            entries: [entry],
+            rides: [TrainingWeek.Ride(Self.session(tabata, at: Self.day(-3)))],
+            calendar: Self.calendar
+        )
+        #expect(days.first?.date == Self.calendar.startOfDay(for: Self.day(-7)))
+        #expect(days.allSatisfy { $0.isPast })
+        #expect(!days.contains { $0.isToday })
+        #expect(days[4].isCompleted(entry))
+    }
+
+    @Test("In einer kommenden Woche ist nichts vorbei")
+    func futureWeek() {
+        let days = TrainingWeek.days(around: Self.day(8), today: Self.tuesday, entries: [], rides: [], calendar: Self.calendar)
+        #expect(days.allSatisfy { !$0.isPast && !$0.isToday })
+        #expect(TrainingWeek.weekNumber(of: Self.day(0), calendar: Self.calendar) == 40)
+        #expect(TrainingWeek.weekNumber(of: Self.day(7), calendar: Self.calendar) == 41)
+    }
+
+    @Test("Eine Einheit von einem anderen Gerät hakt ab, eine doppelte zählt einmal")
+    func mergesRemoteRides() throws {
+        let tabata = BuiltInWorkouts.tabata
+        let vo2 = BuiltInWorkouts.vo2max5x3
+        let local = Self.session(tabata, at: Self.day(1))
+        let json = """
+        {"sessions":[
+          {"id":7,"clientID":"\(local.id.uuidString.lowercased())","workoutID":"\(tabata.id.uuidString.lowercased())","workoutName":"Tabata","startedAt":"2026-09-29T16:00:00.000Z","trainingStressScore":60,"hasTrack":false},
+          {"id":8,"clientID":"\(UUID().uuidString.lowercased())","workoutID":"\(vo2.id.uuidString.lowercased())","workoutName":"VO2max","startedAt":"2026-10-01T16:00:00.000Z","trainingStressScore":63,"durationSeconds":2760}
+        ]}
+        """
+        let remote = try JSONDecoder().decode(SessionSummaryListPayload.self, from: Data(json.utf8))
+            .sessions.compactMap { $0.makeRide() }
+        let rides = TrainingWeek.merge(local: [local], remote: remote)
+        #expect(rides.count == 2)
+
+        let entries = [
+            PlanEntry(weekday: .tuesday, workoutID: tabata.id, workoutName: tabata.name),
+            PlanEntry(weekday: .thursday, workoutID: vo2.id, workoutName: vo2.name),
+        ]
+        let days = TrainingWeek.days(around: Self.day(3), entries: entries, rides: rides, calendar: Self.calendar)
+        #expect(days[0].completedEntryIDs == Set(entries.map(\.id)))
+        #expect(TrainingWeek.rides(rides, inWeekOf: Self.day(3), calendar: Self.calendar).reduce(0) { $0 + $1.trainingStressScore } == 60 + 63)
+    }
 }

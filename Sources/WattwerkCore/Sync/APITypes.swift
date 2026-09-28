@@ -144,6 +144,29 @@ public struct PlanPayload: Codable, Hashable, Sendable {
     public var entries: [PlanEntryPayload]
 }
 
+/// Eine Zeile aus `GET /sessions` - nur, was der Wochenplan braucht.
+/// Die übrigen Felder der Antwort werden beim Dekodieren übergangen.
+public struct SessionSummaryPayload: Codable, Hashable, Sendable {
+    public var clientID: String
+    public var workoutID: String?
+    public var startedAt: String
+    public var trainingStressScore: Int
+
+    public func makeRide() -> TrainingWeek.Ride? {
+        guard let startedAt = WorkoutPayload.date(from: startedAt) else { return nil }
+        return TrainingWeek.Ride(
+            id: clientID,
+            workoutID: workoutID.flatMap(UUID.init(uuidString:)),
+            startedAt: startedAt,
+            trainingStressScore: trainingStressScore
+        )
+    }
+}
+
+public struct SessionSummaryListPayload: Codable, Hashable, Sendable {
+    public var sessions: [SessionSummaryPayload]
+}
+
 /// Der Fehlerkörper der API: ein maschinenlesbarer Code plus ein Satz für Menschen.
 public struct APIErrorPayload: Codable, Hashable, Sendable {
     public var error: String
