@@ -108,7 +108,7 @@ struct PlanView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 3) {
-            #if !os(tvOS)
+            #if os(macOS)
             Text("Wochenplan")
                 .font(.system(size: 28 * Theme.scale, weight: .bold, design: .rounded))
             #endif

@@ -1,12 +1,14 @@
 # In den App Store
 
-Beide Apps liegen unter **einem** Eintrag in App Store Connect
-(`de.eliaspeeters.wattwerk`, Plattformen macOS und tvOS). Hochgeladen wird mit:
+Alle Apps liegen unter **einem** Eintrag in App Store Connect
+(`de.eliaspeeters.wattwerk`, App-ID `6814144845`, Plattformen macOS, tvOS und
+iOS). Hochgeladen wird mit:
 
 ```bash
-Scripts/release-apps.sh          # beide
+Scripts/release-apps.sh          # alle drei
 Scripts/release-apps.sh mac      # nur macOS
 Scripts/release-apps.sh tv       # nur tvOS
+Scripts/release-apps.sh ios      # nur iPhone und iPad
 ```
 
 ## Das richtige Team
@@ -44,18 +46,25 @@ node Scripts/asc-info.js
 2. **Zertifikate** im Schlüsselbund: „Apple Distribution" und
    „Mac Installer Distribution" des Teams 4R6MBU349U. Anlegen in Xcode unter
    *Settings → Apple Accounts → Team wählen → Manage Certificates → +*.
-3. **tvOS-Store-Profil**, einmalig:
+3. **Store-Profile** für tvOS und iOS, einmalig:
 
    ```bash
    node Scripts/make-profile.js TVOS_APP_STORE "Wattwerk tvOS App Store"
+   node Scripts/make-profile.js IOS_APP_STORE "Wattwerk iOS App Store"
    ```
 
-## Zwei Fallstricke, die im Skript schon gelöst sind
+## Drei Fallstricke, die im Skript schon gelöst sind
 
-**tvOS wird von Hand signiert.** Bei automatischer Signatur fordert Xcode beim
+**tvOS und iOS werden von Hand signiert.** Bei automatischer Signatur fordert Xcode beim
 Archivieren ein *Entwicklungs*profil an und scheitert mit „Your team has no
 devices from which to generate a provisioning profile". Für den Store braucht es
 kein Gerät — deshalb Store-Profil und Distributionszertifikat direkt vorgeben.
+
+**iOS lädt mit ausdrücklicher App-ID hoch.** altool sucht den Eintrag über
+Bundle-ID *und* Plattform. Solange es für iOS noch keine Version im Store gibt,
+findet es keinen und meldet `Unable to find Apple ID for Bundle ID … on
+platform 'iOS App'` — obwohl der Eintrag derselbe ist. Mit `--apple-id` klappt
+es; TestFlight braucht keine angelegte Version.
 
 **Der Export läuft mit aufgeräumtem PATH.** Xcodes Verpackungsschritt ruft
 `/usr/bin/rsync` auf. Das ist unter aktuellem macOS *openrsync*, und es reicht

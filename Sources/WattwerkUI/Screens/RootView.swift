@@ -1,8 +1,9 @@
 import SwiftUI
 import WattwerkCore
 
-/// The app shell. A sidebar on the Mac, a tab bar on the TV, and the ride
-/// screen taking over the whole window while a workout is running.
+/// The app shell. A sidebar on the Mac and the iPad, a tab bar on the TV and
+/// the iPhone, and the ride screen taking over the whole window while a
+/// workout is running.
 public struct RootView: View {
     @State private var model: AppModel
 
@@ -40,9 +41,79 @@ public struct RootView: View {
                     .tag(section)
             }
         }
+        #elseif os(iOS)
+        if horizontalSizeClass == .compact {
+            compactShell
+        } else {
+            splitShell
+        }
         #else
+        splitShell
+        #endif
+    }
+
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    /// Das iPhone: eine Tab-Leiste wie auf dem Apple TV. Sechs Bereiche sind
+    /// einer mehr, als die Leiste zeigt, und „Mehr“ schiebt seine Bereiche auf
+    /// einen UIKit-Stapel, der die Titel von SwiftUI verschluckt. Also fünf
+    /// Tabs, und das Konto hängt am Profil - beides ist „ich“.
+    private var compactShell: some View {
+        TabView(selection: compactSelection) {
+            ForEach(Self.compactSections) { section in
+                compactSectionView(section)
+                    .tabItem { Label(section.title, systemImage: section.systemImage) }
+                    .tag(section)
+            }
+        }
+    }
+
+    private static let compactSections: [AppModel.Section] = [.training, .plan, .devices, .history, .profile]
+
+    private var compactSelection: Binding<AppModel.Section> {
+        Binding(
+            get: { model.section == .account ? .profile : model.section },
+            set: { model.section = $0 }
+        )
+    }
+
+    /// Training, Wochenplan und Verlauf bringen ihren eigenen Stapel mit. Die
+    /// übrigen stehen auf dem Mac in der Detailspalte, die ihn stellt - in
+    /// einem Tab gäbe es ohne ihn keinen Titel.
+    @ViewBuilder
+    private func compactSectionView(_ section: AppModel.Section) -> some View {
+        switch section {
+        case .training, .plan, .history:
+            sectionView(section)
+        case .devices, .account:
+            NavigationStack { sectionView(section) }
+        case .profile:
+            NavigationStack {
+                ProfileView(model: model)
+                    .toolbar {
+                        ToolbarItem(placement: .primaryAction) {
+                            NavigationLink {
+                                AccountView(model: model)
+                            } label: {
+                                Label(
+                                    AppModel.Section.account.title,
+                                    systemImage: model.account.isSignedIn ? "checkmark.icloud" : "icloud"
+                                )
+                                .labelStyle(.titleAndIcon)
+                            }
+                        }
+                    }
+            }
+        }
+    }
+    #endif
+
+    #if !os(tvOS)
+    /// Mac und iPad: Seitenleiste links, Bereich rechts.
+    private var splitShell: some View {
         NavigationSplitView {
-            List(AppModel.Section.allCases, selection: $model.section) { section in
+            List(AppModel.Section.allCases, selection: sidebarSelection) { section in
                 Label(section.title, systemImage: section.systemImage)
                     .tag(section)
             }
@@ -54,8 +125,17 @@ public struct RootView: View {
         } detail: {
             sectionView(model.section)
         }
-        #endif
     }
+
+    /// Auf iOS verlangt eine Liste mit Einfachauswahl eine optionale Bindung.
+    /// Abwählen gibt es in der Seitenleiste nicht, also bleibt der Bereich.
+    private var sidebarSelection: Binding<AppModel.Section?> {
+        Binding(
+            get: { model.section },
+            set: { if let section = $0 { model.section = section } }
+        )
+    }
+    #endif
 
     @ViewBuilder
     private func sectionView(_ section: AppModel.Section) -> some View {

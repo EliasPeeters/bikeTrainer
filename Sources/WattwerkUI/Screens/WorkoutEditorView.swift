@@ -36,7 +36,7 @@ struct WorkoutEditorView: View {
                     addButtons
                     if showsIntervalBuilder { intervalBuilder }
                 }
-                .padding(24)
+                .padding(Theme.pageInset)
             }
             .background(Theme.background)
             .navigationTitle(draft.isBuiltIn ? "Kopie bearbeiten" : "Programm bearbeiten")
@@ -53,7 +53,9 @@ struct WorkoutEditorView: View {
                 }
             }
         }
+        #if os(macOS)
         .frame(minWidth: 720, minHeight: 620)
+        #endif
     }
 
     private var metadata: some View {
@@ -91,18 +93,33 @@ struct WorkoutEditorView: View {
         VStack(alignment: .leading, spacing: 10) {
             WorkoutProfileChart(workout: draft, ftp: ftp)
                 .frame(height: 120)
-            HStack(spacing: 22) {
-                Label(Formatting.compactDuration(draft.duration), systemImage: "clock")
-                Label("\(draft.plannedTSS(ftp: ftp)) TSS", systemImage: "flame")
-                Label("IF \(Formatting.decimal(draft.intensityFactor(ftp: ftp), places: 2))", systemImage: "gauge")
-                Spacer()
-                Text("Bei FTP \(ftp) W")
-                    .foregroundStyle(.secondary)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 22) {
+                    previewFigures
+                    Spacer()
+                    previewFTP
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 22) { previewFigures }
+                    previewFTP
+                }
             }
             .font(.system(size: 13, weight: .medium))
         }
         .padding(18)
         .cardBackground()
+    }
+
+    @ViewBuilder
+    private var previewFigures: some View {
+        Label(Formatting.compactDuration(draft.duration), systemImage: "clock")
+        Label("\(draft.plannedTSS(ftp: ftp)) TSS", systemImage: "flame")
+        Label("IF \(Formatting.decimal(draft.intensityFactor(ftp: ftp), places: 2))", systemImage: "gauge")
+    }
+
+    private var previewFTP: some View {
+        Text("Bei FTP \(ftp) W")
+            .foregroundStyle(.secondary)
     }
 
     private var segmentList: some View {
@@ -136,26 +153,37 @@ struct WorkoutEditorView: View {
         draft.segments.swapAt(index, target)
     }
 
+    /// Drei Knöpfe nebeneinander, oder untereinander, wo die Breite fehlt.
     private var addButtons: some View {
-        HStack(spacing: 12) {
-            Button {
-                draft.segments.append(.steady(300, percentFTP: 0.75))
-            } label: {
-                Label("Block hinzufügen", systemImage: "plus")
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                addButtonGroup
+                Spacer()
             }
-            Button {
-                draft.segments.append(.ramp(300, fromPercentFTP: 0.50, toPercentFTP: 0.90))
-            } label: {
-                Label("Rampe hinzufügen", systemImage: "chart.line.uptrend.xyaxis")
+            VStack(alignment: .leading, spacing: 10) {
+                addButtonGroup
             }
-            Button {
-                showsIntervalBuilder.toggle()
-            } label: {
-                Label("Intervallserie …", systemImage: "repeat")
-            }
-            Spacer()
         }
         .buttonStyle(.bordered)
+    }
+
+    @ViewBuilder
+    private var addButtonGroup: some View {
+        Button {
+            draft.segments.append(.steady(300, percentFTP: 0.75))
+        } label: {
+            Label("Block hinzufügen", systemImage: "plus")
+        }
+        Button {
+            draft.segments.append(.ramp(300, fromPercentFTP: 0.50, toPercentFTP: 0.90))
+        } label: {
+            Label("Rampe hinzufügen", systemImage: "chart.line.uptrend.xyaxis")
+        }
+        Button {
+            showsIntervalBuilder.toggle()
+        } label: {
+            Label("Intervallserie …", systemImage: "repeat")
+        }
     }
 
     private var intervalBuilder: some View {
@@ -225,38 +253,62 @@ struct SegmentEditorRow: View {
         return .percent
     }
 
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    private var isNarrow: Bool { horizontalSizeClass == .compact }
+    #else
+    private var isNarrow: Bool { false }
+    #endif
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(Theme.zoneColor(segment.zone(ftp: ftp)))
-                    .frame(width: 5, height: 30)
-
-                Picker("", selection: Binding(get: { kind }, set: setKind)) {
-                    ForEach(Kind.allCases) { Text($0.rawValue).tag($0) }
+            if isNarrow {
+                // Auf dem iPhone ist eine Zeile gut 600 Punkte zu schmal:
+                // Art und Dauer oben, Vorgabe darunter, und die vier Knöpfe
+                // hinter einem Menü.
+                HStack(spacing: 10) {
+                    zoneMarker
+                    kindPicker
+                    Spacer()
+                    durationFields
                 }
-                .labelsHidden()
-                .frame(width: 110)
-
-                durationFields
-
-                if kind != .free {
-                    valueFields
-                    Picker("", selection: Binding(get: { unit }, set: setUnit)) {
-                        ForEach(Unit.allCases) { Text($0.rawValue).tag($0) }
+                HStack(spacing: 10) {
+                    if kind != .free {
+                        valueFields
+                        unitPicker
                     }
-                    .labelsHidden()
-                    .frame(width: 90)
+                    Spacer()
+                    Menu {
+                        Button(action: onMoveUp) { Label("Nach oben", systemImage: "arrow.up") }
+                        Button(action: onMoveDown) { Label("Nach unten", systemImage: "arrow.down") }
+                        Button(action: onDuplicate) { Label("Duplizieren", systemImage: "plus.square.on.square") }
+                        Button(role: .destructive, action: onDelete) { Label("Löschen", systemImage: "trash") }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.system(size: 20))
+                    }
                 }
+                .padding(.leading, 15)
+            } else {
+                HStack(spacing: 10) {
+                    zoneMarker
+                    kindPicker
+                    durationFields
 
-                Spacer()
+                    if kind != .free {
+                        valueFields
+                        unitPicker
+                    }
 
-                Button(action: onMoveUp) { Image(systemName: "arrow.up") }
-                Button(action: onMoveDown) { Image(systemName: "arrow.down") }
-                Button(action: onDuplicate) { Image(systemName: "plus.square.on.square") }
-                Button(role: .destructive, action: onDelete) { Image(systemName: "trash") }
+                    Spacer()
+
+                    Button(action: onMoveUp) { Image(systemName: "arrow.up") }
+                    Button(action: onMoveDown) { Image(systemName: "arrow.down") }
+                    Button(action: onDuplicate) { Image(systemName: "plus.square.on.square") }
+                    Button(role: .destructive, action: onDelete) { Image(systemName: "trash") }
+                }
+                .buttonStyle(.borderless)
             }
-            .buttonStyle(.borderless)
 
             TextField(
                 "Bezeichnung (optional)",
@@ -271,6 +323,28 @@ struct SegmentEditorRow: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
+    }
+
+    private var zoneMarker: some View {
+        RoundedRectangle(cornerRadius: 3)
+            .fill(Theme.zoneColor(segment.zone(ftp: ftp)))
+            .frame(width: 5, height: 30)
+    }
+
+    private var kindPicker: some View {
+        Picker("", selection: Binding(get: { kind }, set: setKind)) {
+            ForEach(Kind.allCases) { Text($0.rawValue).tag($0) }
+        }
+        .labelsHidden()
+        .frame(width: 110)
+    }
+
+    private var unitPicker: some View {
+        Picker("", selection: Binding(get: { unit }, set: setUnit)) {
+            ForEach(Unit.allCases) { Text($0.rawValue).tag($0) }
+        }
+        .labelsHidden()
+        .frame(width: 90)
     }
 
     private var durationFields: some View {
@@ -290,6 +364,7 @@ struct SegmentEditorRow: View {
         .textFieldStyle(.roundedBorder)
         .multilineTextAlignment(.trailing)
         .monospacedDigit()
+        .numberKeyboard()
     }
 
     private var valueFields: some View {
@@ -313,6 +388,7 @@ struct SegmentEditorRow: View {
         .textFieldStyle(.roundedBorder)
         .multilineTextAlignment(.trailing)
         .monospacedDigit()
+        .numberKeyboard()
     }
 
     // MARK: Conversions between the UI's plain integers and `PowerTarget`

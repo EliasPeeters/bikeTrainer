@@ -3,9 +3,18 @@ import WattwerkCore
 
 /// The screen you actually look at while pedalling. Everything on it has to be
 /// readable from a TV three metres away, so the type is big and the layout is
-/// the same on both platforms - only the scale changes.
+/// the same on Mac, iPad and TV - only the scale changes. The iPhone held
+/// upright is the one exception: there the readouts stack instead of sitting
+/// side by side, and the controls take two rows.
 struct RideView: View {
     let model: AppModel
+
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    private var isNarrow: Bool { horizontalSizeClass == .compact }
+    #else
+    private var isNarrow: Bool { false }
+    #endif
 
     private var engine: WorkoutEngine { model.engine }
     private var ftp: Int { model.settings.rider.ftp }
@@ -31,15 +40,30 @@ struct RideView: View {
 
     // MARK: HUD
 
+    @ViewBuilder
     private var hud: some View {
-        VStack(spacing: 18 * Theme.scale) {
+        #if os(iOS)
+        // Ein iPhone quer oder ein kleines iPad im geteilten Bildschirm hat
+        // weniger Höhe, als der Fahrtbildschirm braucht. Dann lieber scrollen
+        // als Knöpfe abschneiden.
+        ViewThatFits(in: .vertical) {
+            hudContent
+            ScrollView { hudContent }
+        }
+        #else
+        hudContent
+        #endif
+    }
+
+    private var hudContent: some View {
+        VStack(spacing: (isNarrow ? 14 : 18) * Theme.scale) {
             header
             mainReadouts
             Spacer(minLength: 0)
             profileStrip
             controls
         }
-        .padding(28)
+        .padding(isNarrow ? 16 : 28)
     }
 
     private var header: some View {
@@ -75,57 +99,106 @@ struct RideView: View {
         }
     }
 
+    @ViewBuilder
     private var mainReadouts: some View {
-        HStack(alignment: .top, spacing: 24 * Theme.scale) {
-            VStack(alignment: .leading, spacing: 10) {
+        if isNarrow {
+            VStack(alignment: .leading, spacing: 16) {
+                powerReadout
+                narrowReadouts
+            }
+            .padding(16)
+            .cardBackground()
+        } else {
+            HStack(alignment: .top, spacing: 24 * Theme.scale) {
+                powerReadout
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                sideReadouts
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(20)
+            .cardBackground()
+        }
+    }
+
+    private var powerReadout: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            MetricTile(
+                label: "Leistung",
+                value: Formatting.watts(engine.live.power),
+                unit: "W",
+                size: .hero,
+                tint: Theme.deviationColor(engine.targetDeviation),
+                secondary: targetDescription
+            )
+            TargetBar(
+                actual: engine.live.power,
+                target: engine.commandedWatts,
+                zone: engine.currentZone
+            )
+        }
+    }
+
+    private var sideReadouts: some View {
+        VStack(alignment: .leading, spacing: 16 * Theme.scale) {
+            MetricTile(
+                label: "Restzeit Block",
+                value: Formatting.clock(engine.position?.segmentRemaining ?? 0),
+                size: .large,
+                tint: Theme.accent
+            )
+            HStack(spacing: 16) {
                 MetricTile(
-                    label: "Leistung",
-                    value: Formatting.watts(engine.live.power),
-                    unit: "W",
-                    size: .hero,
-                    tint: Theme.deviationColor(engine.targetDeviation),
-                    secondary: targetDescription
+                    label: "Trittfrequenz",
+                    value: engine.live.cadence.map(String.init) ?? "--",
+                    unit: "U/min",
+                    tint: Theme.cadence,
+                    secondary: cadenceHint
                 )
-                TargetBar(
-                    actual: engine.live.power,
-                    target: engine.commandedWatts,
-                    zone: engine.currentZone
+                MetricTile(
+                    label: "Puls",
+                    value: engine.live.heartRate.map(String.init) ?? "--",
+                    unit: "bpm",
+                    tint: Theme.heartRate
                 )
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 16) {
+                MetricTile(label: "Ø Leistung", value: "\(engine.stats.averagePower)", unit: "W")
+                MetricTile(label: "NP", value: "\(engine.stats.normalizedPower)", unit: "W")
+                MetricTile(label: "Arbeit", value: "\(engine.stats.kilojoules)", unit: "kJ")
+            }
+        }
+    }
 
-            VStack(alignment: .leading, spacing: 16 * Theme.scale) {
+    /// Dieselben sechs Werte wie daneben, nur als Raster: untereinander
+    /// gestapelt wären sie auf dem iPhone höher als der Bildschirm.
+    private var narrowReadouts: some View {
+        Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 14) {
+            GridRow {
                 MetricTile(
-                    label: "Restzeit Block",
+                    label: "Restzeit",
                     value: Formatting.clock(engine.position?.segmentRemaining ?? 0),
-                    size: .large,
                     tint: Theme.accent
                 )
-                HStack(spacing: 16) {
-                    MetricTile(
-                        label: "Trittfrequenz",
-                        value: engine.live.cadence.map(String.init) ?? "--",
-                        unit: "U/min",
-                        tint: Theme.cadence,
-                        secondary: cadenceHint
-                    )
-                    MetricTile(
-                        label: "Puls",
-                        value: engine.live.heartRate.map(String.init) ?? "--",
-                        unit: "bpm",
-                        tint: Theme.heartRate
-                    )
-                }
-                HStack(spacing: 16) {
-                    MetricTile(label: "Ø Leistung", value: "\(engine.stats.averagePower)", unit: "W")
-                    MetricTile(label: "NP", value: "\(engine.stats.normalizedPower)", unit: "W")
-                    MetricTile(label: "Arbeit", value: "\(engine.stats.kilojoules)", unit: "kJ")
-                }
+                MetricTile(
+                    label: "Tritt",
+                    value: engine.live.cadence.map(String.init) ?? "--",
+                    unit: "U/min",
+                    tint: Theme.cadence,
+                    secondary: cadenceHint
+                )
+                MetricTile(
+                    label: "Puls",
+                    value: engine.live.heartRate.map(String.init) ?? "--",
+                    unit: "bpm",
+                    tint: Theme.heartRate
+                )
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            GridRow {
+                MetricTile(label: "Ø Leistung", value: "\(engine.stats.averagePower)", unit: "W")
+                MetricTile(label: "NP", value: "\(engine.stats.normalizedPower)", unit: "W")
+                MetricTile(label: "Arbeit", value: "\(engine.stats.kilojoules)", unit: "kJ")
+            }
         }
-        .padding(20)
-        .cardBackground()
     }
 
     private var targetDescription: String {
@@ -149,7 +222,7 @@ struct RideView: View {
         VStack(spacing: 6) {
             if let workout = engine.workout {
                 WorkoutProfileChart(workout: workout, ftp: ftp, progress: engine.progress)
-                    .frame(height: 90 * Theme.scale)
+                    .frame(height: (isNarrow ? 64 : 90) * Theme.scale)
             }
             HStack {
                 Text("Verbleibend \(Formatting.clock(engine.remaining))")
@@ -167,44 +240,71 @@ struct RideView: View {
         }
     }
 
+    @ViewBuilder
     private var controls: some View {
-        HStack(spacing: 14 * Theme.scale) {
-            controlButton("Block zurück", systemImage: "backward.end.fill") {
-                engine.skipBackward()
+        if isNarrow {
+            VStack(spacing: 10) {
+                HStack(spacing: 10) {
+                    blockControls
+                    Spacer()
+                    stopButton
+                }
+                HStack(spacing: 10) {
+                    intensityControls
+                    Spacer()
+                }
             }
-            controlButton(
-                engine.state == .paused ? "Weiter" : "Pause",
-                systemImage: engine.state == .paused ? "play.fill" : "pause.fill"
-            ) {
-                togglePause()
+        } else {
+            HStack(spacing: 14 * Theme.scale) {
+                blockControls
+                Divider().frame(height: 30)
+                intensityControls
+                Spacer()
+                stopButton
             }
-            controlButton("Block vor", systemImage: "forward.end.fill") {
-                engine.skipForward()
-            }
-
-            Divider().frame(height: 30)
-
-            controlButton("Leichter", systemImage: "minus") {
-                engine.nudgeBias(by: -0.05)
-            }
-            Text("\(Int((engine.intensityBias * 100).rounded())) %")
-                .font(.system(size: 15 * Theme.scale, weight: .semibold))
-                .monospacedDigit()
-                .frame(width: 66 * Theme.scale)
-            controlButton("Härter", systemImage: "plus") {
-                engine.nudgeBias(by: 0.05)
-            }
-
-            Spacer()
-
-            Button(role: .destructive) {
-                engine.stop()
-            } label: {
-                Label("Beenden", systemImage: "stop.fill")
-                    .padding(.horizontal, 8)
-            }
-            .buttonStyle(.bordered)
         }
+    }
+
+    @ViewBuilder
+    private var blockControls: some View {
+        controlButton("Block zurück", systemImage: "backward.end.fill") {
+            engine.skipBackward()
+        }
+        controlButton(
+            engine.state == .paused ? "Weiter" : "Pause",
+            systemImage: engine.state == .paused ? "play.fill" : "pause.fill"
+        ) {
+            togglePause()
+        }
+        controlButton("Block vor", systemImage: "forward.end.fill") {
+            engine.skipForward()
+        }
+    }
+
+    @ViewBuilder
+    private var intensityControls: some View {
+        controlButton("Leichter", systemImage: "minus") {
+            engine.nudgeBias(by: -0.05)
+        }
+        Text("\(Int((engine.intensityBias * 100).rounded())) %")
+            .font(.system(size: 15 * Theme.scale, weight: .semibold))
+            .monospacedDigit()
+            .frame(width: 66 * Theme.scale)
+        controlButton("Härter", systemImage: "plus") {
+            engine.nudgeBias(by: 0.05)
+        }
+    }
+
+    private var stopButton: some View {
+        Button(role: .destructive) {
+            engine.stop()
+        } label: {
+            Label("Beenden", systemImage: "stop.fill")
+                .lineLimit(1)
+                .padding(.horizontal, 8)
+        }
+        .buttonStyle(.bordered)
+        .fixedSize()
     }
 
     private func controlButton(

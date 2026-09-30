@@ -7,7 +7,7 @@ Das Repo hat vier Teile:
 
 | Teil | Was | Stand |
 |---|---|---|
-| **Apps** | SwiftUI für macOS und tvOS, gemeinsames Swift-Package | Baut und läuft, am echten Trainer ungetestet |
+| **Apps** | SwiftUI für macOS, tvOS, iPhone und iPad, gemeinsames Swift-Package | Baut und läuft, am echten Trainer ungetestet |
 | **API** | TypeScript, Express, Sequelize, MariaDB, Flyway | Läuft, End-to-End geprüft |
 | **Web-Portal** | Vite, React, nginx – eigener Compose-Stack | Läuft, im Browser durchgespielt |
 | **MCP-Server** | Die API als Werkzeuge für Sprachmodelle, über stdio | Läuft, alle Werkzeuge gegen die echte API geprüft |
@@ -28,7 +28,8 @@ open Apps/Wattwerk.xcodeproj
 
 Schema **Wattwerk (Mac)** wählen, ⌘R. Dann links auf **Geräte** → **Simulator**
 einschalten (kein Rad nötig), auf **Training** → Programm wählen →
-**Einheit starten**.
+**Einheit starten**. Für iPhone und iPad dasselbe mit **Wattwerk (iOS)**; im
+Simulator gibt es kein Bluetooth, der Trainer-Simulator geht aber.
 
 ```bash
 swift test
@@ -106,8 +107,8 @@ Dialog, fertig – Node bringt Claude selbst mit) und ein Plugin für Claude Cod
 5. **Andersherum**: in der App ein Programm bauen, *Öffentlich teilen* – es
    erscheint im Portal unter *Entdecken*.
 
-Für den **Apple TV** muss in `APIEnvironment.defaultBaseURL` die IP des Macs
-stehen statt `localhost` (etwa `http://192.168.1.20:8088`) – der Fernseher hat
+Für den **Apple TV** und ein echtes **iPhone** muss in
+`APIEnvironment.defaultBaseURL` die IP des Macs stehen statt `localhost` (etwa `http://192.168.1.20:8088`) – der Fernseher hat
 kein eigenes `localhost`, auf dem die API läuft. Im tvOS-Simulator geht
 `localhost`, weil er sich das Netz des Macs teilt.
 
@@ -130,8 +131,8 @@ Die Host-Ports sind über `API_PORT`, `DB_PORT` und `LANDINGPAGE_PORT`
 Package.swift                Swift-Package WattwerkKit
 ├── Sources/WattwerkCore         Workouts, Ride-Engine, Metriken, Speicher
 ├── Sources/WattwerkBluetooth    FTMS-Trainer, Pulsgurt, Simulator
-└── Sources/WattwerkUI           Oberfläche, geteilt von Mac und TV
-Apps/Wattwerk.xcodeproj      Targets: Wattwerk (macOS 14+), WattwerkTV (tvOS 17+)
+└── Sources/WattwerkUI           Oberfläche, geteilt von Mac, TV, iPhone und iPad
+Apps/Wattwerk.xcodeproj      Targets: Wattwerk (macOS 14+), WattwerkTV (tvOS 17+), WattwerkiOS (iOS 17+)
 
 package.json                 Yarn-Workspace
 ├── packages/shared              API-Typen, von Backend und Web-Portal genutzt
@@ -178,7 +179,7 @@ geht aus dem Plan heraus (dieselben Kartenreihen wie in der Bibliothek) oder
 auf der Seite eines Programms über *Einplanen*; ein Programm lässt sich so mit
 ein paar Klicks auf mehrere Tage legen. Gefahrene Einheiten haken den Eintrag
 ab, auch wenn der Dienstag ein Mittwoch wurde. Oben in *Training* steht, was
-heute dran ist. Auf Mac, Apple TV und im Web-Portal, mit Konto überall gleich.
+heute dran ist. Auf Mac, Apple TV, iPhone, iPad und im Web-Portal, mit Konto überall gleich.
 In App und Portal lässt sich Woche für Woche blättern: was geplant war und was
 davon gefahren wurde – auf jedem Gerät, nicht nur auf dem, das man gerade hält.
 
@@ -221,7 +222,7 @@ HTTP-Routen – keine zweite Geschäftslogik, die auseinanderlaufen könnte.
 | Sprache | UI deutsch, Code englisch | Du schreibst deutsch, Code bleibt international lesbar |
 | Protokoll | FTMS als Hauptweg | Herstellerneutral, kann als einziges Standardprotokoll ERG |
 | Ziele | Relativ zur FTP | Programme überleben Formveränderungen |
-| Editor | Nur Mac/iPad | Strukturierte Workouts mit der Fernbedienung zu tippen ist Quälerei |
+| Editor | Mac, iPad, iPhone – nicht Apple TV | Strukturierte Workouts mit der Fernbedienung zu tippen ist Quälerei |
 | tvOS-Speicher | Nur Zusammenfassungen | Auf dem Apple TV gibt es kein beschreibbares Dokumentverzeichnis, nur ~500 kB `UserDefaults` |
 | API-Umfang | Konto, Profil, Einheiten, Programme, Ordner, Wochenplan | Genau das, was App und Portal brauchen |
 | Zugangsschlüssel | Eigene Tabelle statt langlebiger Tokens | Ein Auffrischungstoken lässt sich nur zurückziehen, indem man das Geheimnis wechselt – und wirft damit auch alle Apps raus |
@@ -241,7 +242,9 @@ HTTP-Routen – keine zweite Geschäftslogik, die auseinanderlaufen könnte.
 
 ## Geprüft und nicht geprüft
 
-**Geprüft.** Beide App-Targets bauen (Xcode 27, Swift 6), 116 Swift-Tests grün.
+**Geprüft.** Alle drei App-Targets bauen (Xcode 27, Swift 6), 116 Swift-Tests grün.
+Die iOS-App ist im Simulator auf iPhone und iPad durchgespielt: Simulator
+einschalten, Einheit fahren und beenden, Wochenplan, Editor, Profil, Konto.
 155 Backend-Tests grün, davon 111 gegen eine echte MariaDB. 49 MCP-Tests grün,
 dazu alle Werkzeuge einmal von Hand gegen den laufenden Stack — über
 stdio, über HTTP und aus dem fertigen Container heraus. Der OAuth-Ablauf ist

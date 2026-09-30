@@ -255,10 +255,17 @@ struct AccountView: View {
                     #if !os(macOS)
                     .textInputAutocapitalization(.never)
                     #endif
+                    #if os(iOS)
+                    .keyboardType(.emailAddress)
+                    .textContentType(.username)
+                    #endif
                     .autocorrectionDisabled()
             }
             labelled("Passwort") {
                 SecureField("mindestens 8 Zeichen", text: $password)
+                    #if os(iOS)
+                    .textContentType(mode == .register ? .newPassword : .password)
+                    #endif
             }
 
             if let error = model.account.lastError {
@@ -327,6 +334,10 @@ struct AccountView: View {
                 .foregroundStyle(.secondary)
 
             TextField(APIEnvironment.defaultBaseURL, text: $serverURL)
+                #if os(iOS)
+                .keyboardType(.URL)
+                .textInputAutocapitalization(.never)
+                #endif
                 .textFieldStyle(.plain)
                 .font(.system(size: 14 * Theme.scale, design: .monospaced))
                 .autocorrectionDisabled()

@@ -13,6 +13,15 @@ struct RideSummaryView: View {
         RideMetric.allCases.filter { $0.isPresent(in: record.samples) }
     }
 
+    /// Auf dem iPhone passen so zwei Kacheln nebeneinander statt einer.
+    #if os(iOS)
+    private static let tileWidth: CGFloat = 130
+    private static let pagePadding: CGFloat = Theme.pageInset
+    #else
+    private static let tileWidth: CGFloat = 150 * Theme.scale
+    private static let pagePadding: CGFloat = 28
+    #endif
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
@@ -25,7 +34,7 @@ struct RideSummaryView: View {
                 }
 
                 LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 150 * Theme.scale), spacing: 16)],
+                    columns: [GridItem(.adaptive(minimum: Self.tileWidth), spacing: 16)],
                     spacing: 16
                 ) {
                     MetricTile(label: "Dauer", value: Formatting.clock(record.duration), size: .large)
@@ -81,7 +90,7 @@ struct RideSummaryView: View {
                     .buttonStyle(.bordered)
                 }
             }
-            .padding(28)
+            .padding(Self.pagePadding)
             .frame(maxWidth: 900 * Theme.scale)
             .frame(maxWidth: .infinity)
         }

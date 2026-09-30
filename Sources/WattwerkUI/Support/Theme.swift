@@ -30,6 +30,9 @@ public enum Theme {
     public static var pageInset: CGFloat {
         #if os(tvOS)
         return 60
+        #elseif os(iOS)
+        // Bündig mit dem großen Navigationstitel.
+        return 16
         #else
         return 24
         #endif

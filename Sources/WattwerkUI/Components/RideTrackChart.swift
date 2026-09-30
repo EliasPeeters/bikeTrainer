@@ -265,7 +265,17 @@ public struct RideMetricPicker: View {
         self._selection = selection
     }
 
+    /// Auf dem iPhone ist die Reihe breiter als der Bildschirm. Dann
+    /// verschiebbar, statt die Beschriftungen mitten im Wort umzubrechen.
     public var body: some View {
+        ScrollView(.horizontal) {
+            buttons
+        }
+        .scrollIndicators(.hidden)
+        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+    }
+
+    private var buttons: some View {
         HStack(spacing: 10) {
             ForEach(available) { metric in
                 Button {
@@ -284,6 +294,7 @@ public struct RideMetricPicker: View {
                             .opacity(selection.contains(metric) ? 1 : 0.3)
                         Text(metric.label)
                             .font(.system(size: 13 * Theme.scale, weight: .medium))
+                            .lineLimit(1)
                     }
                     .padding(.horizontal, 12 * Theme.scale)
                     .padding(.vertical, 7 * Theme.scale)

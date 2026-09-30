@@ -104,7 +104,7 @@ struct WorkoutDetailView: View {
                 startButton
                 segmentList
             }
-            .padding(24)
+            .padding(Theme.pageInset)
         }
         .background(Theme.background)
         .sectionTitle(workout.name)
@@ -141,8 +141,11 @@ struct WorkoutDetailView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
+            // Auf iPhone und iPad steht der Name schon als großer Titel darüber.
+            #if !os(iOS)
             Text(workout.name)
                 .font(.system(size: 30 * Theme.scale, weight: .bold, design: .rounded))
+            #endif
             if !workout.summary.isEmpty {
                 Text(workout.summary)
                     .font(.system(size: 15 * Theme.scale))
@@ -170,19 +173,49 @@ struct WorkoutDetailView: View {
         }
     }
 
+    /// Vier Kennzahlen nebeneinander, wo Platz ist; auf dem iPhone zwei mal
+    /// zwei, statt die Beschriftungen mitten im Wort umzubrechen.
     private var statsRow: some View {
-        HStack(spacing: 16) {
-            MetricTile(label: "Dauer", value: Formatting.compactDuration(workout.duration))
-            MetricTile(label: "Belastung", value: "\(workout.plannedTSS(ftp: ftp))", unit: "TSS")
-            MetricTile(
-                label: "Intensität",
-                value: Formatting.decimal(workout.intensityFactor(ftp: ftp), places: 2),
-                unit: "IF"
-            )
-            MetricTile(label: "Spitze", value: "\(workout.peakWatts(ftp: ftp))", unit: "W")
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 16) {
+                durationTile
+                loadTile
+                intensityTile
+                peakTile
+            }
+            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 14) {
+                GridRow {
+                    durationTile
+                    loadTile
+                }
+                GridRow {
+                    intensityTile
+                    peakTile
+                }
+            }
         }
         .padding(16)
         .cardBackground(Theme.surfaceRaised)
+    }
+
+    private var durationTile: some View {
+        MetricTile(label: "Dauer", value: Formatting.compactDuration(workout.duration))
+    }
+
+    private var loadTile: some View {
+        MetricTile(label: "Belastung", value: "\(workout.plannedTSS(ftp: ftp))", unit: "TSS")
+    }
+
+    private var intensityTile: some View {
+        MetricTile(
+            label: "Intensität",
+            value: Formatting.decimal(workout.intensityFactor(ftp: ftp), places: 2),
+            unit: "IF"
+        )
+    }
+
+    private var peakTile: some View {
+        MetricTile(label: "Spitze", value: "\(workout.peakWatts(ftp: ftp))", unit: "W")
     }
 
     private func badge(_ text: String, tint: Color = .white) -> some View {

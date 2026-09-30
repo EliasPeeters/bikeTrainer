@@ -2,7 +2,8 @@
 
 ## Warum ein Package und nicht ein großes App-Target
 
-Die Anforderung war von Anfang an „Mac und Apple TV, später iPad und iPhone“.
+Die Anforderung war von Anfang an „Mac und Apple TV, später iPad und iPhone“ –
+inzwischen sind es alle vier.
 Das geht nur gut, wenn die Apps selbst fast nichts enthalten. Deshalb liegt
 alles im Package `WattwerkKit`, und `Apps/Mac` und `Apps/TV` bestehen jeweils aus
 genau einer Datei mit `@main`. Eine iOS-App hinzuzufügen heißt: ein Target
@@ -183,17 +184,26 @@ Seiten.
 
 ## Oberfläche
 
-Eine `RootView` für beide Plattformen. Der Unterschied ist klein und ehrlich
+Eine `RootView` für alle Plattformen. Der Unterschied ist klein und ehrlich
 abgegrenzt:
 
-* Mac: `NavigationSplitView` mit Seitenleiste, Werkzeugleisten, Editor.
+* Mac und iPad: `NavigationSplitView` mit Seitenleiste, Werkzeugleisten, Editor.
 * TV: `TabView`, kein Editor, Play/Pause auf der Fernbedienung.
+* iPhone: `TabView` mit fünf Tabs – das Konto hängt am Profil, weil ein
+  sechster Tab unter „Mehr“ landen würde, und das schiebt seine Bereiche auf
+  einen UIKit-Stapel, der die Titel von SwiftUI verschluckt. Entschieden wird
+  über die horizontale Größenklasse, nicht über das Gerät: ein iPad in einem
+  schmalen Fenster bekommt ebenfalls die Tabs.
+* Fahrtbildschirm und Editor haben eine schmale Fassung für das iPhone im
+  Hochformat (Werte als Raster, Steuerung in zwei Reihen, Blockzeilen
+  zweizeilig). Passt die Fahrt trotzdem nicht in die Höhe – iPhone quer –,
+  scrollt sie, statt Knöpfe abzuschneiden.
 * `Theme.scale` (1.0 bzw. 1.6) skaliert Schrift und Abstände, statt zwei
   Layouts zu pflegen.
 
 Ein paar SwiftUI-Bausteine gibt es auf tvOS nicht (`Stepper`, `Slider`,
 `fileExporter`). Statt überall `#if` zu streuen, gibt es Ersatzkomponenten wie
-`ValueStepper`, die auf beiden Plattformen dasselbe tun.
+`ValueStepper`, die überall dasselbe tun.
 
 ## Tests
 

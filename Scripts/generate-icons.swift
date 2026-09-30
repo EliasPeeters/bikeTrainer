@@ -4,7 +4,7 @@
 //
 // Quellen und wofür sie taugen:
 //   app logo.png              Squircle mit transparentem Rand -> macOS
-//   app logo fullscreen.png   randlos, dunkler Verlauf -> Hintergrundebene tvOS
+//   app logo fullscreen.png   randlos, dunkler Verlauf -> iOS, Hintergrundebene tvOS
 //   logo.png                  freigestellt (Alpha 0 im Hintergrund) -> Vordergrund,
 //                             Top Shelf und Favicon
 //
@@ -118,6 +118,17 @@ for (points, scale) in macSizes {
           to: "\(root)/Apps/Mac/Assets.xcassets/AppIcon.appiconset/\(name)")
 }
 print("macOS: \(macSizes.count) Dateien")
+
+// MARK: iOS
+
+// iOS will ein einziges deckendes Quadrat mit 1024 Pixeln und schneidet die
+// Ecken selbst ab. Die randlose Vorlage ist genau das - ein Alphakanal würde
+// beim Hochladen abgelehnt.
+let iosSource = load("app logo fullscreen.png")
+write(fill(iosSource, CGSize(width: 1024, height: 1024)),
+      size: CGSize(width: 1024, height: 1024),
+      to: "\(root)/Apps/iOS/Assets.xcassets/AppIcon.appiconset/icon_1024.png")
+print("iOS: 1 Datei")
 
 // MARK: tvOS
 

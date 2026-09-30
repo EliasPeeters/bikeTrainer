@@ -110,6 +110,17 @@ extension View {
         self
         #endif
     }
+
+    /// Ganze Zahlen tippt man auf dem iPhone am Ziffernblock, nicht auf der
+    /// vollen Tastatur.
+    @ViewBuilder
+    func numberKeyboard() -> some View {
+        #if os(iOS)
+        keyboardType(.numberPad)
+        #else
+        self
+        #endif
+    }
 }
 
 #if os(tvOS)

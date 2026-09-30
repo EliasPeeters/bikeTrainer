@@ -77,8 +77,9 @@ struct LibraryView: View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 3) {
                 // Auf dem Apple TV steht "Training" bereits in der Leiste ganz
-                // oben. Ein zweites Mal wäre nur Lärm.
-                #if !os(tvOS)
+                // oben, auf iPhone und iPad als großer Navigationstitel. Ein
+                // zweites Mal wäre nur Lärm.
+                #if os(macOS)
                 Text("Training")
                     .font(.system(size: 28 * Theme.scale, weight: .bold, design: .rounded))
                 #endif

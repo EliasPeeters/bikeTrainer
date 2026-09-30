@@ -53,6 +53,10 @@ public struct MetricTile: View {
                 .font(.system(size: size.labelSize * Theme.scale, weight: .semibold))
                 .tracking(1.2)
                 .foregroundStyle(.secondary)
+                // Eine Beschriftung auf zwei Zeilen schiebt ihren Wert tiefer
+                // als die der Nachbarn. Lieber etwas kleiner, auf einer Linie.
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
 
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(value)
